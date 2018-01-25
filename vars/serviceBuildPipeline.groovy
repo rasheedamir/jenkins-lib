@@ -24,7 +24,7 @@ def call(body) {
             envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
             volumes: [
                     secretVolume(secretName: 'digitaldealer-service-secret', mountPath: '/etc/secrets/service-secret'),
-                    secretVolume(secretName: "${kubeConfig}", mountPath: '/home/jenkins/.kube')
+                    secretVolume(secretName: "${KUBE_CONFIG}", mountPath: '/home/jenkins/.kube')
                 ])
             {
 
