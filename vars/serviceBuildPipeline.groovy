@@ -16,16 +16,13 @@ def call(body) {
     def canaryVersion = "${versionPrefix}.${env.BUILD_NUMBER}"
     def label = "buildpod.${env.JOB_NAME}.${env.BUILD_NUMBER}".replace('-', '_').replace('/', '_')
 
-    def project = currentBuild.projectName.tokenize( '-' )[0]
+
     def stashName = ""
 
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
             envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
-            volumes: [
-                    secretVolume(secretName: 'digitaldealer-service-secret', mountPath: '/etc/secrets/service-secret'),
-                    secretVolume(secretName: "${KUBE_CONFIG}", mountPath: '/home/jenkins/.kube')
-                ])
+            volumes: [secretVolume(secretName: 'digitaldealer-service-secret', mountPath: '/etc/secrets/service-secret')])
             {
 
                 mavenNode(mavenImage: 'maven:3.5-jdk-8') {
@@ -40,24 +37,11 @@ def call(body) {
                                 version = canaryVersion
                             }
                         }
-                    }
-                }
 
-                clientsNode {
-
-                    stage("Download manifest") {
-
-                        echo "Fetching project ${project} version: ${canaryVersion}"
-
-                        withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
-                            sh "wget http://ddadmin:${PWD}@nexus/repository/maven-releases/com/scania/dd/${project}/${canaryVersion}/${project}-${canaryVersion}-kubernetes.yml -O /home/jenkins/service-deployment.yaml"
-                        }
-                    }
-
-                    stage("Deploy") {
-                        echo "Deploying project ${project} version: ${canaryVersion}"
-                        container(name: 'clients') {
-                            sh "kubectl apply  -n=${NAMESPACE} -f /home/jenkins/service-deployment.yaml"
+                        stage('Rollout to Stage') {
+                            kubernetesApply(registry: DOCKER_URL, environment: NAMESPACE)
+                            stashName = label
+                            stash includes: '**/*.yml', name: stashName
                         }
                     }
                 }
