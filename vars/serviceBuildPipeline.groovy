@@ -39,7 +39,7 @@ def call(body) {
                         }
 
                         stage('Rollout to Stage') {
-                            kubernetesApply(registry: 'docker.tools.theddapp.com', environment: "apps")
+                            kubernetesApply(registry: DOCKER_URL, environment: NAMESPACE)
                             stashName = label
                             stash includes: '**/*.yml', name: stashName
                         }
