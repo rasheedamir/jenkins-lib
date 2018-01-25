@@ -40,11 +40,24 @@ def call(body) {
                                 version = canaryVersion
                             }
                         }
+                    }
+                }
 
-                        stage('Rollout to Stage') {
-                            kubernetesApply(registry: DOCKER_URL, environment: NAMESPACE)
-                            stashName = label
-                            stash includes: '**/*.yml', name: stashName
+                clientsNode {
+
+                    stage("Download manifest") {
+
+                        echo "Fetching project ${project} version: ${canaryVersion}"
+
+                        withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
+                            sh "wget http://ddadmin:${PWD}@nexus/repository/maven-releases/com/scania/dd/${project}/${canaryVersion}/${project}-${canaryVersion}-kubernetes.yml -O /home/jenkins/service-deployment.yaml"
+                        }
+                    }
+
+                    stage("Deploy") {
+                        echo "Deploying project ${project} version: ${canaryVersion}"
+                        container(name: 'clients') {
+                            sh "kubectl apply  -n=${NAMESPACE} -f /home/jenkins/service-deployment.yaml"
                         }
                     }
                 }
