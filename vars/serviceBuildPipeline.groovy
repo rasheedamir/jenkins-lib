@@ -22,7 +22,10 @@ def call(body) {
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
             envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
-            volumes: [secretVolume(secretName: 'digitaldealer-service-secret', mountPath: '/etc/secrets/service-secret')])
+            volumes: [
+                    secretVolume(secretName: 'digitaldealer-service-secret', mountPath: '/etc/secrets/service-secret'),
+                    secretVolume(secretName: "${kubeConfig}", mountPath: '/home/jenkins/.kube')
+                ])
             {
 
                 mavenNode(mavenImage: 'maven:3.5-jdk-8') {
