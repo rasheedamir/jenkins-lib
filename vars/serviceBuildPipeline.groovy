@@ -16,6 +16,7 @@ def call(body) {
 
     def kubeConfig = params.KUBE_CONFIG
     def nameSpace = params.NAMESPACE
+    def project
 
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
@@ -31,6 +32,8 @@ def call(body) {
 
                         stage("checkout") {
                             checkout scm
+                            def pom = readMavenPom file: 'pom.xml'
+                            project = pom.artifactId
                         }
 
                         stage('Canary Release') {
@@ -43,10 +46,6 @@ def call(body) {
                 }
 
                 clientsNode {
-
-                    def pom = readMavenPom file: 'pom.xml'
-                    def project = pom.artifactId
-                    println "Extracted artifactId: ${project} from pom"
 
                     stage("Download manifest") {
 
