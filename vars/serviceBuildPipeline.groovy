@@ -16,7 +16,9 @@ def call(body) {
 
     def kubeConfig = params.KUBE_CONFIG
     def nameSpace = params.NAMESPACE
-    def project = env.POM_ARTIFACTID
+
+    def pom = readMavenPom file: 'pom.xml'
+    def project = pom.artifactId
 
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
@@ -50,7 +52,6 @@ def call(body) {
                         echo "Fetching project ${project} version: ${buildVersion}"
 
                         withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
-                            sh 'env'
                             sh "wget https://ddadmin:${PWD}@nexus.tools.tools178.digitaldealer.devtest.aws.scania.com/repository/maven-releases/com/scania/dd/${project}/${buildVersion}/${project}-${buildVersion}-kubernetes.yml -O /home/jenkins/service-deployment.yaml"
                         }
                     }
