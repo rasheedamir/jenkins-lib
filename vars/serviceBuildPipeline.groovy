@@ -50,6 +50,7 @@ def call(body) {
                         echo "Fetching project ${project} version: ${buildVersion}"
 
                         withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
+                            sh 'env'
                             sh "wget https://ddadmin:${PWD}@nexus.tools.tools178.digitaldealer.devtest.aws.scania.com/repository/maven-releases/com/scania/dd/${project}/${buildVersion}/${project}-${buildVersion}-kubernetes.yml -O /home/jenkins/service-deployment.yaml"
                         }
                     }
@@ -57,7 +58,6 @@ def call(body) {
                     stage("Deploy") {
                         echo "Deploying project ${project} version: ${buildVersion}"
                         container(name: 'clients') {
-                            sh 'env'
                             sh "kubectl apply  -n=${nameSpace} -f /home/jenkins/service-deployment.yaml"
                             sh "kubectl rollout status deployment/${project} -n=${nameSpace}"
                         }
