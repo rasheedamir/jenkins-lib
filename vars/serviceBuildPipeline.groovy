@@ -18,6 +18,8 @@ def call(body) {
     def nameSpace = params.NAMESPACE
     def project = env.POM_ARTIFACTID
 
+    sh 'env'
+
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
             envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
