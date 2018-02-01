@@ -17,8 +17,12 @@ def call(body) {
     def kubeConfig = params.KUBE_CONFIG
     def nameSpace = params.NAMESPACE
 
-    def pom = readMavenPom file: 'pom.xml'
-    def project = pom.artifactId
+    def project
+    node {
+        def pom = readMavenPom file: 'pom.xml'
+        project = pom.artifactId
+        println project
+    }
 
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
