@@ -18,8 +18,6 @@ def call(body) {
     def nameSpace = params.NAMESPACE
     def project = env.POM_ARTIFACTID
 
-    sh 'env'
-
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
             envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
@@ -59,6 +57,7 @@ def call(body) {
                     stage("Deploy") {
                         echo "Deploying project ${project} version: ${buildVersion}"
                         container(name: 'clients') {
+                            sh 'env'
                             sh "kubectl apply  -n=${nameSpace} -f /home/jenkins/service-deployment.yaml"
                             sh "kubectl rollout status deployment/${project} -n=${nameSpace}"
                         }
