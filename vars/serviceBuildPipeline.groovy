@@ -16,7 +16,7 @@ def call(body) {
 
     def kubeConfig = params.KUBE_CONFIG
     def nameSpace = params.NAMESPACE
-    def project = currentBuild.projectName.tokenize('-')[0]
+    def project = env.POM_ARTIFACTID
 
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
