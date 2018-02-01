@@ -17,13 +17,6 @@ def call(body) {
     def kubeConfig = params.KUBE_CONFIG
     def nameSpace = params.NAMESPACE
 
-    def project
-    node {
-        def pom = readMavenPom file: 'pom.xml'
-        project = pom.artifactId
-        println project
-    }
-
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
             envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
@@ -61,6 +54,11 @@ def call(body) {
                     }
 
                     stage("Deploy") {
+
+                        def pom = readMavenPom file: 'pom.xml'
+                        def project = pom.artifactId
+                        println project
+
                         echo "Deploying project ${project} version: ${buildVersion}"
                         container(name: 'clients') {
                             sh "kubectl apply  -n=${nameSpace} -f /home/jenkins/service-deployment.yaml"
