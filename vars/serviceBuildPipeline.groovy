@@ -44,6 +44,10 @@ def call(body) {
 
                 clientsNode {
 
+                    def pom = readMavenPom file: 'pom.xml'
+                    def project = pom.artifactId
+                    println "Extracted artifactId: ${project} from pom"
+
                     stage("Download manifest") {
 
                         echo "Fetching project ${project} version: ${buildVersion}"
@@ -54,10 +58,6 @@ def call(body) {
                     }
 
                     stage("Deploy") {
-
-                        def pom = readMavenPom file: 'pom.xml'
-                        def project = pom.artifactId
-                        println project
 
                         echo "Deploying project ${project} version: ${buildVersion}"
                         container(name: 'clients') {
