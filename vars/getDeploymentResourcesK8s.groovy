@@ -56,21 +56,19 @@ def deployment = """
 - apiVersion: extensions/v1beta1
   kind: Deployment
   metadata:
-    annotations:
-      fabric8.io/iconUrl: ${config.icon}
     labels:
       provider: fabric8
       project: ${config.projectName}
       version: ${config.version}
     name: ${config.projectName}
   spec:
-    replicas: 2
-    minReadySeconds: 5
-    strategy:
-      type: RollingUpdate
-        rollingUpdate:
-          maxSurge: 1
-          maxUnavailable: 1
+     replicas: 2
+     minReadySeconds: 5
+     strategy:
+        type: RollingUpdate
+            rollingUpdate:
+            maxSurge: 1
+            maxUnavailable: 1
     selector:
       matchLabels:
         provider: fabric8
