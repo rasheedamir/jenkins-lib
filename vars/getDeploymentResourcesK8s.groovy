@@ -18,11 +18,6 @@ def call(body) {
 
     def yaml
 
-    def fabric8Registry = ''
-    if (env.FABRIC8_DOCKER_REGISTRY_SERVICE_HOST) {
-        fabric8Registry = env.FABRIC8_DOCKER_REGISTRY_SERVICE_HOST
-    }
-
     def project = project
     
     
@@ -90,7 +85,7 @@ def deployment = """
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          image: ${fabric8Registry}/${project}:${config.version}
+          image: ${imageName}
           imagePullPolicy: IfNotPresent
           name: ${project}
           ports:
