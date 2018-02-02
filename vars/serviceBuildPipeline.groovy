@@ -16,7 +16,7 @@ def call(body) {
 
     def kubeConfig = params.KUBE_CONFIG
     def nameSpace = params.NAMESPACE
-    def project = env.POM_ARTIFACTID
+    def project
 
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
@@ -32,6 +32,8 @@ def call(body) {
 
                         stage("checkout") {
                             checkout scm
+                            def pom = readMavenPom file: 'pom.xml'
+                            project = pom.artifactId
                         }
 
                         stage('Canary Release') {
@@ -55,6 +57,7 @@ def call(body) {
                     }
 
                     stage("Deploy") {
+
                         echo "Deploying project ${project} version: ${buildVersion}"
                         container(name: 'clients') {
                             sh "kubectl apply  -n=${nameSpace} -f /home/jenkins/service-deployment.yaml"
