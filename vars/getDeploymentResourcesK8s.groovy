@@ -66,7 +66,7 @@ def deployment = """
      minReadySeconds: 5
      strategy:
         type: RollingUpdate
-            rollingUpdate:
+        rollingUpdate:
             maxSurge: 1
             maxUnavailable: 1
     selector:
