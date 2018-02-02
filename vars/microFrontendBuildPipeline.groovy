@@ -21,6 +21,11 @@ def call(body) {
                     }
                 }
 
+                stage("Rollup") {
+                    sh "npm install -g rollup"
+                    sh "rollup -c"
+                }
+
                 stage("Publish to nexus") {
                     withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
                                       variable: 'NEXUS_NPM_AUTH']]) {
