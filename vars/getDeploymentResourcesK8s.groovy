@@ -62,13 +62,10 @@ def deployment = """
       version: ${config.version}
     name: ${config.projectName}
   spec:
-    replicas: 1
+    replicas: 2
     minReadySeconds: 5
     strategy:
       type: RollingUpdate
-      rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
     selector:
       matchLabels:
         provider: fabric8
