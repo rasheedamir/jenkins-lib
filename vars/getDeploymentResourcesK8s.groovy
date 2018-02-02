@@ -31,8 +31,9 @@ def service = """
   kind: Service
   metadata:
     annotations:
-      fabric8.io/iconUrl: ${config.icon}
+      fabric8.io/ingress.path: /api/i18n/
       fabric8.io/ingress.annotations: |-
+        ingress.kubernetes.io/rewrite-target: /
         ingress.kubernetes.io/force-ssl-redirect: true
         kubernetes.io/ingress.class: ${ingressClass}
     labels:
@@ -63,7 +64,13 @@ def deployment = """
       version: ${config.version}
     name: ${config.projectName}
   spec:
-    replicas: 1
+    replicas: 2
+    minReadySeconds: 5
+    strategy:
+      type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 1
+          maxUnavailable: 1
     selector:
       matchLabels:
         provider: fabric8
