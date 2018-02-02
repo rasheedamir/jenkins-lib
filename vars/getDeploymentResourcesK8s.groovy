@@ -19,6 +19,7 @@ def call(body) {
     def yaml
 
     def project = config.project
+    def imageName = config.imageName
     
     
     def list = """
