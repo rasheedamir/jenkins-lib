@@ -31,7 +31,7 @@ def service = """
   kind: Service
   metadata:
     annotations:
-      fabric8.io/ingress.path: /api/organization/
+      fabric8.io/ingress.path: /api/${config.projectName}/
       fabric8.io/ingress.annotations: |-
         ingress.kubernetes.io/rewrite-target: /
         ingress.kubernetes.io/force-ssl-redirect: true
