@@ -32,7 +32,7 @@ def call(Map parameters = [:], body) {
                                     envVar(key: 'DOCKER_CONFIG', value: '/home/jenkins/.docker/')]
                     )],
             volumes: [
-                    secretVolume(secretName: 'docker-registry-secret', mountPath: '/home/jenkins/.docker'),
+                    secretVolume(secretName: 'jenkins-docker-cfg', mountPath: '/home/jenkins/.docker'),
                     secretVolume(secretName: 'jenkins-hub-api-token', mountPath: '/home/jenkins/.apitoken'),
                     secretVolume(secretName: 'jenkins-ssh-config', mountPath: '/root/.ssh'),
                     secretVolume(secretName: 'jenkins-git-ssh', mountPath: '/root/.ssh-git'),
