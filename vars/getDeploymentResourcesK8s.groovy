@@ -37,17 +37,17 @@ def service = """
         kubernetes.io/ingress.class: ${ingressClass}
     labels:
       provider: fabric8
-      project: ${project}
+      project: ${config.project}
       expose: '${expose}'
       version: ${config.version}
-    name: ${project}
+    name: ${config.project}
   spec:
     ports:
     - port: 80
       protocol: TCP
       targetPort: ${config.port}
     selector:
-      project: ${project}
+      project: ${config.project}
       provider: fabric8
 """
 
@@ -59,20 +59,20 @@ def deployment = """
       fabric8.io/iconUrl: ${config.icon}
     labels:
       provider: fabric8
-      project: ${project}
+      project: ${config.project}
       version: ${config.version}
-    name: ${project}
+    name: ${config.project}
   spec:
     replicas: 1
     selector:
       matchLabels:
         provider: fabric8
-        project: ${project}
+        project: ${config.project}
     template:
       metadata:
         labels:
           provider: fabric8
-          project: ${project}
+          project: ${config.project}
           version: ${config.version}
       spec:
         imagePullSecrets:
@@ -83,9 +83,9 @@ def deployment = """
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          image: ${imageName}
+          image: ${config.imageName}
           imagePullPolicy: IfNotPresent
-          name: ${project}
+          name: ${config.project}
           ports:
           - containerPort: ${config.port}
             name: http
