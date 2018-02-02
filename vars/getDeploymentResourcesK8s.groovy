@@ -18,7 +18,7 @@ def call(body) {
 
     def yaml
 
-    def project = project
+    def project = config.project
     
     
     def list = """
