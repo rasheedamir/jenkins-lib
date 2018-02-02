@@ -4,7 +4,7 @@ def call(body) {
     // evaluate the body block, and collect configuration into the object
     def config = [:]
     body.resolveStrategy = Closure.DELEGATE_FIRST
-    body.delegate = config
+        body.delegate = config
     body()
 
     def expose = config.exposeApp ?: 'true'
@@ -17,9 +17,6 @@ def call(body) {
     def livenessProbePath = config.livenessProbePath ?: "/"
 
     def yaml
-
-    def project = config.project
-    def imageName = config.imageName
     
     
     def list = """
