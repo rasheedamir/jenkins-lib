@@ -19,10 +19,13 @@ def call(body) {
     def yaml
 
     def fabric8Registry = ''
-    if (env.FABRIC8_DOCKER_REGISTRY_SERVICE_HOST){
-        fabric8Registry = env.FABRIC8_DOCKER_REGISTRY_SERVICE_HOST+':'+env.FABRIC8_DOCKER_REGISTRY_SERVICE_PORT
+    if (env.FABRIC8_DOCKER_REGISTRY_SERVICE_HOST) {
+        fabric8Registry = env.FABRIC8_DOCKER_REGISTRY_SERVICE_HOST
     }
 
+    def project = project
+    
+    
     def list = """
 ---
 apiVersion: v1
@@ -41,17 +44,17 @@ def service = """
         kubernetes.io/ingress.class: ${ingressClass}
     labels:
       provider: fabric8
-      project: ${env.JOB_NAME}
+      project: ${project}
       expose: '${expose}'
       version: ${config.version}
-    name: ${env.JOB_NAME}
+    name: ${project}
   spec:
     ports:
     - port: 80
       protocol: TCP
       targetPort: ${config.port}
     selector:
-      project: ${env.JOB_NAME}
+      project: ${project}
       provider: fabric8
 """
 
@@ -63,20 +66,20 @@ def deployment = """
       fabric8.io/iconUrl: ${config.icon}
     labels:
       provider: fabric8
-      project: ${env.JOB_NAME}
+      project: ${project}
       version: ${config.version}
-    name: ${env.JOB_NAME}
+    name: ${project}
   spec:
     replicas: 1
     selector:
       matchLabels:
         provider: fabric8
-        project: ${env.JOB_NAME}
+        project: ${project}
     template:
       metadata:
         labels:
           provider: fabric8
-          project: ${env.JOB_NAME}
+          project: ${project}
           version: ${config.version}
       spec:
         imagePullSecrets:
@@ -87,9 +90,9 @@ def deployment = """
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          image: ${fabric8Registry}/${env.JOB_NAME}:${config.version}
+          image: ${fabric8Registry}/${project}:${config.version}
           imagePullPolicy: IfNotPresent
-          name: ${env.JOB_NAME}
+          name: ${project}
           ports:
           - containerPort: ${config.port}
             name: http
