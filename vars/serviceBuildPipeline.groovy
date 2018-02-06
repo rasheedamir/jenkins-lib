@@ -41,7 +41,6 @@ def call(body) {
                                 version = buildVersion
                             }
                         }
-
                     }
                 }
 
