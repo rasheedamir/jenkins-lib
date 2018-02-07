@@ -38,9 +38,9 @@ def call(body) {
                         }
 
                         stage('build') {
-                            sh "git checkout -b ${env.JOB_NAME}-${buildVersion}"
-                            sh "mvn org.codehaus.mojo:versions-maven-plugin:2.2:set -U -DnewVersion=${buildVersion}"
-                            sh "mvn deploy"
+                            mavenCanaryRelease {
+                                version = buildVersion
+                            }
                         }
                     }
                 }
