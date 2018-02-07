@@ -16,6 +16,7 @@ def call(body) {
 
     def kubeConfig = params.KUBE_CONFIG
     def nameSpace = params.NAMESPACE
+    def mavenRepo = params.MAVEN_REPO
     def project
 
     podTemplate(name: 'sa-secret',
@@ -36,10 +37,10 @@ def call(body) {
                             project = pom.artifactId
                         }
 
-                        stage('Canary Release') {
-                            mavenCanaryRelease {
-                                version = buildVersion
-                            }
+                        stage('build') {
+                            sh "git checkout -b ${env.JOB_NAME}-${buildVersion}"
+                            sh "mvn org.codehaus.mojo:versions-maven-plugin:2.2:set -U -DnewVersion=${buildVersion}"
+                            sh "mvn deploy"
                         }
                     }
                 }
@@ -51,7 +52,7 @@ def call(body) {
                         echo "Fetching project ${project} version: ${buildVersion}"
 
                         withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
-                            sh "wget https://ddadmin:${PWD}@nexus.tools.tools178.digitaldealer.devtest.aws.scania.com/repository/maven-releases/com/scania/dd/${project}/${buildVersion}/${project}-${buildVersion}-kubernetes.yml -O /home/jenkins/service-deployment.yaml"
+                            sh "wget https://ddadmin:${PWD}@${mavenRepo}/repository/maven-releases/com/scania/dd/${project}/${buildVersion}/${project}-${buildVersion}-kubernetes.yml -O /home/jenkins/service-deployment.yaml"
                         }
                     }
 
