@@ -23,6 +23,7 @@ def call(body) {
             serviceAccount: 'digitaldealer-serviceaccount',
             envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
             volumes: [
+                    persistentVolumeClaim(claimName: 'jenkins-m2-cache-efs-pv', mountPath: '/root/.mvnrepository'),
                     secretVolume(secretName: "${kubeConfig}", mountPath: '/home/jenkins/.kube'),
                     secretVolume(secretName: 'digitaldealer-service-secret', mountPath: '/etc/secrets/service-secret')
             ])
