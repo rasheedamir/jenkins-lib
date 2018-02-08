@@ -39,10 +39,15 @@ def call(body) {
                         }
 
                         stage('build') {
-                            mavenCanaryRelease {
-                                version = buildVersion
-                            }
+                            sh "git checkout -b ${env.JOB_NAME}-${buildVersion}"
+                            sh "mvn org.codehaus.mojo:versions-maven-plugin:2.2:set -U -DnewVersion=${buildVersion}"
+                            sh "mvn deploy"
                         }
+
+                        stage('push docker image') {
+                            sh "mvn fabric8:push -Ddocker.push.registry=${env.FABRIC8_DOCKER_REGISTRY_SERVICE_HOST}:${env.FABRIC8_DOCKER_REGISTRY_SERVICE_PORT}"
+                        }
+
                     }
                 }
 
