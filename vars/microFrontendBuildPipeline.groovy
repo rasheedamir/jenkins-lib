@@ -21,6 +21,21 @@ def call(body) {
                     }
                 }
 
+                stage("Lint") {
+                    withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                      variable: 'NEXUS_NPM_AUTH']]) {
+                        sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn lint -f junit -o lint-report.xml"
+                    }
+                }
+
+                stage("Test") {
+                    withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                      variable: 'NEXUS_NPM_AUTH']]) {
+                        sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn add jest-junit"
+                        sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn test --testResultsProcessor=\"jest-junit\""
+                    }
+                }
+
                 stage("Rollup") {
                     sh "npm install -g rollup"
                     sh "rollup -c"
@@ -32,11 +47,9 @@ def call(body) {
                         sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} npm publish"
                     }
                 }
-
             } finally {
-//            zip zipFile: 'output.zip', dir: 'target', archive: true
-//            archiveArtifacts artifacts: 'target/screenshots/*'
-//            junit 'target/surefire-reports/*.xml'
+                junit 'lint-report.xml'
+                junit 'junit.xml'
             }
         }
     }
