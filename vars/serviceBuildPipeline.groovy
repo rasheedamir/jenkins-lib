@@ -17,6 +17,7 @@ def call(body) {
     def kubeConfig = params.KUBE_CONFIG
     def nameSpace = params.NAMESPACE
     def mavenRepo = params.MAVEN_REPO
+    def dockerRepo = params.DOCKER_URL
     def project
 
     podTemplate(name: 'sa-secret',
@@ -45,7 +46,7 @@ def call(body) {
                         }
 
                         stage('push docker image') {
-                            sh "mvn fabric8:push -Ddocker.push.registry=${env.FABRIC8_DOCKER_REGISTRY_SERVICE_HOST}:${env.FABRIC8_DOCKER_REGISTRY_SERVICE_PORT}"
+                            sh "mvn fabric8:push -Ddocker.push.registry=${dockerRepo}"
                         }
 
                     }
