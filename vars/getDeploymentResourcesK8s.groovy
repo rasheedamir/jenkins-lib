@@ -10,7 +10,7 @@ def call(body) {
     def expose = config.exposeApp ?: 'true'
     def requestCPU = config.resourceRequestCPU ?: '0'
     def requestMemory = config.resourceRequestMemory ?: '0'
-    def limitCPU = config.resourceLimitMemory ?: '0'
+    def limitCPU = config.resourceLimitCPU ?: '0'
     def limitMemory = config.resourceLimitMemory ?: '0'
     def ingressClass = config.ingressClass ?: 'unknown'
     def readinessProbePath = config.readinessProbePath ?: "/"
@@ -93,11 +93,11 @@ def deployment = """
             name: http
           resources:
             limits:
-              cpu: ${requestCPU}
-              memory: ${requestMemory}
-            requests:
               cpu: ${limitCPU}
               memory: ${limitMemory}
+            requests:
+              cpu: ${requestCPU}
+              memory: ${requestMemory}
           readinessProbe:
             httpGet:
               path: "${readinessProbePath}"

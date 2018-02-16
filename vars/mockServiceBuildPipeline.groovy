@@ -54,6 +54,10 @@ def call(Map parameters = [:], body) {
                             readinessProbePath = "/readiness"
                             livenessProbePath = "/health"
                             ingressClass = "external-ingress"
+                            resourceRequestCPU = "20m"
+                            resourceRequestMemory = "200Mi"
+                            resourceLimitCPU = "100m"
+                            resourceLimitMemory = "1100Mi"
                         }
 
                         writeFile file: "deployment.yaml", text: rc
