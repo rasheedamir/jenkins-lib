@@ -7,7 +7,7 @@ def call(body) {
     body()
 
     try {
-        versionPrefix = VERSION_PREFIX
+        versionPrefix = config.VERSION_PREFIX
     } catch (Throwable ignored) {
         versionPrefix = "1.2"
     }
