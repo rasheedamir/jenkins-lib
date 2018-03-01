@@ -6,11 +6,7 @@ def call(body) {
     body.delegate = config
     body()
 
-    try {
-        versionPrefix = config.VERSION_PREFIX
-    } catch (Throwable ignored) {
-        versionPrefix = "1.2"
-    }
+    def versionPrefix = config.VERSION_PREFIX ?: "1.2"
 
     def buildVersion = "${versionPrefix}.${env.BUILD_NUMBER}"
 
