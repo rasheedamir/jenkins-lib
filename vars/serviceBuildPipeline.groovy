@@ -68,7 +68,7 @@ def call(body) {
                         echo "Deploying project ${project} version: ${buildVersion}"
                         container(name: 'clients') {
                             sh "kubectl apply  -n=${nameSpace} -f /home/jenkins/service-deployment.yaml"
-                            sh "kubectl rollout status deployment/${project} -n=${nameSpace}"
+                            sh "kubectl rollout status deployment/${project} -n=${nameSpace} --watch=true"
                         }
                     }
                 }
