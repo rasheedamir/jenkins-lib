@@ -59,15 +59,64 @@ def call(body) {
                         }
                     }
 
-                    stage("Deploy") {
+                    stage("Deploy to mock") {
 
                         echo "Deploying project ${project} version: ${buildVersion}"
                         container(name: 'clients') {
+                            sh "kubectl apply  -n=mock -f /home/jenkins/service-deployment.yaml"
+                            sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
+                            stash "manifest"
+                        }
+                    }
+                }
+
+                timeout(10) {
+                    mavenNode(mavenImage: 'stakater/chrome-headless') {
+                        container(name: 'maven') {
+                            try {
+                                stage("checkout") {
+                                    checkout scm
+                                }
+
+                                stage("chmod") {
+                                    sh 'chmod +x mvnw'
+                                }
+
+                                stage("test") {
+                                    sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
+                                }
+                            } catch (err) {
+                                clientsNode {
+                                    echo "There was test failures. Rolling back mock"
+                                    container(name: 'clients') {
+                                        unstash "manifest"
+                                        sh "kubectl rollout undo  -n=mock -f /home/jenkins/service-deployment.yaml"
+                                        sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
+                                    }
+                                }
+                                throw err
+                            } finally {
+                                zip zipFile: 'output.zip', dir: 'target', archive: true
+                                archiveArtifacts artifacts: 'target/screenshots/*', allowEmptyArchive: true
+                                junit 'target/surefire-reports/*.xml'
+                            }
+                        }
+                    }
+                }
+
+                clientsNode {
+
+                    stage("Deploy to dev") {
+
+                        echo "Deploying project ${project} version: ${buildVersion}"
+                        container(name: 'clients') {
+                            unstash "manifest"
                             sh "kubectl apply  -n=${nameSpace} -f /home/jenkins/service-deployment.yaml"
                             sh "kubectl rollout status deployment/${project} -n=${nameSpace} --watch=true"
                         }
                     }
                 }
+
             }
 }
 
