@@ -65,7 +65,7 @@ def call(body) {
                         container(name: 'clients') {
                             sh "kubectl apply  -n=mock -f /home/jenkins/service-deployment.yaml"
                             sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
-                            stash "manifest"
+                            stash includes: '/home/jenkins/service-deployment.yaml', name: 'manifest'
                         }
                     }
                 }
