@@ -77,15 +77,15 @@ def call(body) {
                             try {
                                 stage("running mock tests") {
                                     checkout scm
-                                    sh 'mvn clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
+                                    sh 'chmod +x mvnw'
+                                    sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
                                 }
 
                             } catch (err) {
                                 clientsNode {
                                     echo "There was test failures. Rolling back mock"
                                     container(name: 'clients') {
-                                        unstash "manifest"
-                                        sh "kubectl rollout undo  -n=mock -f service-deployment.yaml"
+                                        sh "kubectl rollout undo deployment/${project} -n=mock"
                                         sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
                                     }
                                 }
