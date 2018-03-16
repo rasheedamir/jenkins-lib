@@ -89,8 +89,6 @@ def call(body) {
 
                             } catch (err) {
 
-                                sh "ls target"
-
                                 clientsNode {
                                     echo "There was test failures. Rolling back mock"
                                     container(name: 'clients') {
