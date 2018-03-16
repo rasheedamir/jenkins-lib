@@ -49,23 +49,17 @@ def call(body) {
                 }
 
                 clientsNode {
-
-                    stage("Download manifest") {
-
-                        echo "Fetching project ${project} version: ${buildVersion}"
-
-                        withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
-                            sh "wget https://ddadmin:${PWD}@${mavenRepo}/repository/maven-releases/com/scania/dd/${project}/${buildVersion}/${project}-${buildVersion}-kubernetes.yml -O /home/jenkins/service-deployment.yaml"
-                        }
-                    }
-
                     stage("Deploy to mock") {
-
-                        echo "Deploying project ${project} version: ${buildVersion}"
                         container(name: 'clients') {
-                            sh "kubectl apply  -n=mock -f /home/jenkins/service-deployment.yaml"
+                            echo "Fetching project ${project} version: ${buildVersion}"
+                            withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
+                                sh "wget https://ddadmin:${PWD}@${mavenRepo}/repository/maven-releases/com/scania/dd/${project}/${buildVersion}/${project}-${buildVersion}-kubernetes.yml -O service-deployment.yaml"
+                            }
+
+                            echo "Deploying project ${project} version: ${buildVersion}"
+                            sh "kubectl apply  -n=mock -f service-deployment.yaml"
                             sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
-                            stash includes: '/home/jenkins/service-deployment.yaml', name: 'manifest'
+                            stash includes: 'service-deployment.yaml', name: 'manifest'
                         }
                     }
                 }
@@ -74,17 +68,13 @@ def call(body) {
                     mavenNode(mavenImage: 'stakater/chrome-headless') {
                         container(name: 'maven') {
                             try {
-                                stage("checkout") {
+
+                                stage("running mock tests") {
                                     checkout scm
-                                }
-
-                                stage("chmod") {
                                     sh 'chmod +x mvnw'
-                                }
-
-                                stage("test") {
                                     sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
                                 }
+
                             } catch (err) {
                                 clientsNode {
                                     echo "There was test failures. Rolling back mock"
