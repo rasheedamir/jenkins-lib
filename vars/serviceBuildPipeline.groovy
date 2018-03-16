@@ -49,17 +49,24 @@ def call(body) {
                 }
 
                 clientsNode {
-                    stage("Deploy to mock") {
-                        container(name: 'clients') {
-                            echo "Fetching project ${project} version: ${buildVersion}"
-                            withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
-                                sh "wget https://ddadmin:${PWD}@${mavenRepo}/repository/maven-releases/com/scania/dd/${project}/${buildVersion}/${project}-${buildVersion}-kubernetes.yml -O service-deployment.yaml"
-                            }
 
-                            echo "Deploying project ${project} version: ${buildVersion}"
+                    stage("Download manifest") {
+
+                        echo "Fetching project ${project} version: ${buildVersion}"
+
+                        withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
+                            sh "wget https://ddadmin:${PWD}@${mavenRepo}/repository/maven-releases/com/scania/dd/${project}/${buildVersion}/${project}-${buildVersion}-kubernetes.yml -O service-deployment.yaml"
+                        }
+                        stash includes: 'service-deployment.yaml', name: 'manifest'
+                    }
+
+                    stage("Deploy to mock") {
+
+                        echo "Deploying project ${project} version: ${buildVersion}"
+                        container(name: 'clients') {
+                            unstash "manifest"
                             sh "kubectl apply  -n=mock -f service-deployment.yaml"
                             sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
-                            stash includes: 'service-deployment.yaml', name: 'manifest'
                         }
                     }
                 }
@@ -101,7 +108,7 @@ def call(body) {
                         echo "Deploying project ${project} version: ${buildVersion}"
                         container(name: 'clients') {
                             unstash "manifest"
-                            sh "kubectl apply  -n=${nameSpace} -f /home/jenkins/service-deployment.yaml"
+                            sh "kubectl apply  -n=${nameSpace} -f service-deployment.yaml"
                             sh "kubectl rollout status deployment/${project} -n=${nameSpace} --watch=true"
                         }
                     }
