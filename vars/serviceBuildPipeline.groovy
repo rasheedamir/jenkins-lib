@@ -75,6 +75,13 @@ def call(body) {
                     mavenNode(mavenImage: 'stakater/chrome-headless') {
                         container(name: 'maven') {
                             try {
+
+                                stage("checking out mock tests") {
+                                    git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
+                                            credentialsId: 'dd_ci',
+                                            branch: 'master'
+                                }
+
                                 stage("running mock tests") {
                                     checkout scm
                                     sh 'chmod +x mvnw'
