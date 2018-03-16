@@ -83,7 +83,6 @@ def call(body) {
                                 }
 
                                 stage("running mock tests") {
-                                    checkout scm
                                     sh 'chmod +x mvnw'
                                     sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
                                 }
