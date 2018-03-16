@@ -75,11 +75,9 @@ def call(body) {
                     mavenNode(mavenImage: 'stakater/chrome-headless') {
                         container(name: 'maven') {
                             try {
-
                                 stage("running mock tests") {
                                     checkout scm
-                                    sh 'chmod +x mvnw'
-                                    sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
+                                    sh 'mvn clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
                                 }
 
                             } catch (err) {
@@ -87,7 +85,7 @@ def call(body) {
                                     echo "There was test failures. Rolling back mock"
                                     container(name: 'clients') {
                                         unstash "manifest"
-                                        sh "kubectl rollout undo  -n=mock -f /home/jenkins/service-deployment.yaml"
+                                        sh "kubectl rollout undo  -n=mock -f service-deployment.yaml"
                                         sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
                                     }
                                 }
