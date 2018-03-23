@@ -72,7 +72,7 @@ def call(body) {
                 }
 
                 timeout(20) {
-                    mavenNode(mavenImage: 'stakater/chrome-headless') {
+                    mavenNode(mavenImage: 'stakater/chrome:chrome-65') {
                         container(name: 'maven') {
                             try {
 
