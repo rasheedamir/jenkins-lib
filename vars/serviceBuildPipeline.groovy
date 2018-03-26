@@ -49,15 +49,6 @@ def call(body) {
                     }
                 }
 
-                stage("Acquire lock on mock") {
-                    lock = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
-                    while (lock == "") {
-                        println "Waiting for lock"
-                        sleep(1000)
-                        loc = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
-                    }
-                }
-
                 clientsNode {
 
                     stage("Download manifest") {
@@ -69,22 +60,34 @@ def call(body) {
                         }
                         stash includes: 'service-deployment.yaml', name: 'manifest'
                     }
-
-                    stage("Deploy to mock") {
-
-                        echo "Deploying project ${project} version: ${buildVersion}"
-                        container(name: 'clients') {
-                            unstash "manifest"
-                            sh "kubectl apply  -n=mock -f service-deployment.yaml"
-                            sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
-                        }
+                }
+                
+                stage("Acquire lock on mock") {
+                    lock = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
+                    while (lock == "") {
+                        println "Waiting for lock"
+                        sleep(1000)
+                        loc = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
                     }
                 }
 
-                timeout(20) {
-                    mavenNode(mavenImage: 'stakater/chrome:chrome-65') {
-                        container(name: 'maven') {
-                            try {
+                try {
+                    clientsNode {
+
+                        stage("Deploy to mock") {
+
+                            echo "Deploying project ${project} version: ${buildVersion}"
+                            container(name: 'clients') {
+                                unstash "manifest"
+                                sh "kubectl apply  -n=mock -f service-deployment.yaml"
+                                sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
+                            }
+                        }
+                    }
+
+                    timeout(1) {
+                        mavenNode(mavenImage: 'stakater/chrome:chrome-65') {
+                            container(name: 'maven') {
 
                                 stage("checking out mock tests") {
                                     git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
@@ -97,28 +100,28 @@ def call(body) {
                                     sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
                                 }
 
-                            } catch (err) {
 
-                                clientsNode {
-                                    echo "There was test failures. Rolling back mock"
-                                    container(name: 'clients') {
-                                        sh "kubectl rollout undo deployment/${project} -n=mock"
-                                        sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
-                                    }
-                                }
-                                throw err
-                            } finally {
-                                zip zipFile: 'output.zip', dir: 'target', archive: true
-                                archiveArtifacts artifacts: 'target/screenshots/*', allowEmptyArchive: true
-                                junit 'target/surefire-reports/*.xml'
                             }
                         }
                     }
+                } catch (err) {
+
+                    clientsNode {
+                        echo "There was test failures. Rolling back mock"
+                        container(name: 'clients') {
+                            sh "kubectl rollout undo deployment/${project} -n=mock"
+                            sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
+                        }
+                    }
+                    throw err
+                } finally {
+                    releaseLock(lock)
+
+                    zip zipFile: 'output.zip', dir: 'target', archive: true
+                    archiveArtifacts artifacts: 'target/screenshots/*', allowEmptyArchive: true
+                    junit 'target/surefire-reports/*.xml'
                 }
 
-                stage("Release lock on mock") {
-                    releaseLock(lock)
-                }
 
                 clientsNode {
 
