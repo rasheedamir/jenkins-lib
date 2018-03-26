@@ -15,6 +15,7 @@ def call(body) {
     def mavenRepo = params.MAVEN_REPO
     def dockerRepo = params.DOCKER_URL
     def project
+    def lock = ""
 
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
@@ -45,6 +46,15 @@ def call(body) {
                             sh "mvn fabric8:push -Ddocker.push.registry=${dockerRepo}"
                         }
 
+                    }
+                }
+
+                stage("Acquire lock on mock") {
+                    lock = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
+                    while (lock == "") {
+                        println "Waiting for lock"
+                        sleep(1000)
+                        loc = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
                     }
                 }
 
@@ -106,6 +116,10 @@ def call(body) {
                     }
                 }
 
+                stage("Release lock on mock") {
+                    releaseLock(lock)
+                }
+
                 clientsNode {
 
                     stage("Deploy to dev") {
@@ -122,4 +136,31 @@ def call(body) {
             }
 }
 
+private String tryLock(lock, job_name, activeWait, lockWait, buildVersion) {
+    def url = new URL("http://restful-distributed-lock-manager.tools:8080/locks/${lock}")
+    def conn = url.openConnection()
+    conn.setDoOutput(true)
+    def writer = new OutputStreamWriter(conn.getOutputStream())
+    writer.write("{\"title\": \"${job_name}-${buildVersion}\", \"lifetime\": ${activeWait}, \"wait\": ${lockWait}}")
+    writer.flush()
+    writer.close()
+
+    def responseCode = conn.getResponseCode()
+    if (responseCode == 201) {
+        return conn.getHeaderField("Location")
+    } else if (responseCode != 408) {
+        println "Something went wrong when locking: ${responseCode}"
+    }
+    return ""
+}
+
+private void releaseLock(lockUrl) {
+    def url = new URL(lockUrl)
+    def conn = url.openConnection()
+    conn.setRequestMethod("DELETE")
+    def responseCode = conn.getResponseCode()
+    if (responseCode != 204) {
+        println "Something went wrong when releaseing the lock: ${responseCode}"
+    }
+}
 
