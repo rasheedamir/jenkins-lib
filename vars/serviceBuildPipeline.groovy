@@ -113,6 +113,7 @@ def call(body) {
                         echo "There was test failures. Rolling back mock"
                         container(name: 'clients') {
                             sh "kubectl rollout undo deployment/${project} -n=mock"
+                            sh "kubectl rollout undo service/${project} -n=mock"
                             sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
                         }
                     }
