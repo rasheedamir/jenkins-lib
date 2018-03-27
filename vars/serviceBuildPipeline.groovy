@@ -65,7 +65,7 @@ def call(body) {
                 stage("Acquire lock on mock") {
                     lock = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
                     while (lock == "") {
-                        println "Waiting for lock"
+                        echo "Waiting for lock"
                         sleep 4
                         loc = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
                     }
@@ -88,24 +88,27 @@ def call(body) {
                     timeout(1) {
                         mavenNode(mavenImage: 'stakater/chrome:chrome-65') {
                             container(name: 'maven') {
+                                try {
+                                    stage("checking out mock tests") {
+                                        git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
+                                                credentialsId: 'dd_ci',
+                                                branch: 'master'
+                                    }
 
-                                stage("checking out mock tests") {
-                                    git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
-                                            credentialsId: 'dd_ci',
-                                            branch: 'master'
+                                    stage("running mock tests") {
+                                        sh 'chmod +x mvnw'
+                                        sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
+                                    }
+                                } finally {
+                                    zip zipFile: 'output.zip', dir: 'target', archive: true
+                                    archiveArtifacts artifacts: 'target/screenshots/*', allowEmptyArchive: true
+                                    junit 'target/surefire-reports/*.xml'
                                 }
-
-                                stage("running mock tests") {
-                                    sh 'chmod +x mvnw'
-                                    sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
-                                }
-
 
                             }
                         }
                     }
                 } catch (err) {
-
                     clientsNode {
                         echo "There was test failures. Rolling back mock"
                         container(name: 'clients') {
@@ -116,10 +119,6 @@ def call(body) {
                     throw err
                 } finally {
                     releaseLock(lock)
-
-                    zip zipFile: 'output.zip', dir: 'target', archive: true
-                    archiveArtifacts artifacts: 'target/screenshots/*', allowEmptyArchive: true
-                    junit 'target/surefire-reports/*.xml'
                 }
 
 
@@ -150,20 +149,24 @@ private String tryLock(lock, job_name, activeWait, lockWait, buildVersion) {
 
     def responseCode = conn.getResponseCode()
     if (responseCode == 201) {
-        return conn.getHeaderField("Location")
+        def lockUrl = conn.getHeaderField("Location")
+        echo "Acquired ${lockUrl}"
+        return lockUrl
     } else if (responseCode != 408) {
-        println "Something went wrong when locking: ${responseCode}"
+        echo "Something went wrong when locking: ${responseCode}"
     }
+    echo "Did not get a lock"
     return ""
 }
 
 private void releaseLock(lockUrl) {
+    echo "Releasing ${lockUrl}"
     def url = new URL(lockUrl)
     def conn = url.openConnection()
     conn.setRequestMethod("DELETE")
     def responseCode = conn.getResponseCode()
     if (responseCode != 204) {
-        println "Something went wrong when releaseing the lock: ${responseCode}"
+        echo "Something went wrong when releaseing the lock: ${responseCode}"
     }
 }
 
