@@ -67,7 +67,7 @@ def call(body) {
                     while (lock == "") {
                         echo "Waiting for lock"
                         sleep 4
-                        loc = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
+                        lock = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
                     }
                 }
 
