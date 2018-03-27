@@ -49,16 +49,29 @@ def call(body) {
                     }
                 }
 
+                def prevVersion = ""
                 clientsNode {
-
                     stage("Download manifest") {
-
-                        echo "Fetching project ${project} version: ${buildVersion}"
-
+                        echo "Fetching project ${project} version: ${buildVersion} for testing"
                         withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
                             sh "wget https://ddadmin:${PWD}@${mavenRepo}/repository/maven-releases/com/scania/dd/${project}/${buildVersion}/${project}-${buildVersion}-kubernetes.yml -O service-deployment.yaml"
                         }
                         stash includes: 'service-deployment.yaml', name: 'manifest'
+
+                        container(name: 'clients') {
+                            echo "Save prev version"
+                            prevVersion = sh(script: "kubectl -n=mock get service/${project} -o jsonpath='{.metadata.labels.version}'", returnStdout: true).toString().trim()
+                            echo "Old version is: ${prevVersion}"
+                        }
+                        if (prevVersion != "") {
+                            echo "Fetching project ${project} version: ${prevVersion} for rollback"
+                            withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
+                                sh "wget https://ddadmin:${PWD}@${mavenRepo}/repository/maven-releases/com/scania/dd/${project}/${prevVersion}/${project}-${prevVersion}-kubernetes.yml -O old-service-deployment.yaml"
+                            }
+                            stash includes: 'old-service-deployment.yaml', name: 'old-manifest'
+                        } else {
+                            echo "Not fetching manifest fro rollback, as there is no previous deployed version"
+                        }
                     }
                 }
 
@@ -109,13 +122,20 @@ def call(body) {
                         }
                     }
                 } catch (err) {
-                    clientsNode {
-                        echo "There was test failures. Rolling back mock"
-                        container(name: 'clients') {
-                            sh "kubectl rollout undo deployment/${project} -n=mock"
-                            sh "kubectl rollout undo service/${project} -n=mock"
-                            sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
+                    if (prevVersion != "") {
+                        clientsNode {
+                            echo "There were test failures. Rolling back mock"
+                            container(name: 'clients') {
+//                            Rolling back only rolls back the deployment, the service stays:
+//                            sh "kubectl rollout undo deployment/${project} -n=mock"
+//                            If we reapply an old manifest, the service will be correct, the replica set will be reused, but the deployment/replica set will have a new revision
+                                unstash "old-manifest"
+                                sh "kubectl apply  -n=mock -f old-service-deployment.yaml"
+                                sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
+                            }
                         }
+                    } else {
+                        echo "There were test failures, but there was no previous version, not rolling back mock"
                     }
                     throw err
                 } finally {
@@ -126,7 +146,6 @@ def call(body) {
                 clientsNode {
 
                     stage("Deploy to dev") {
-
                         echo "Deploying project ${project} version: ${buildVersion}"
                         container(name: 'clients') {
                             unstash "manifest"
