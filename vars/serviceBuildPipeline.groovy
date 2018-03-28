@@ -15,6 +15,7 @@ def call(body) {
     def mavenRepo = params.MAVEN_REPO
     def dockerRepo = params.DOCKER_URL
     def project
+    def lock = ""
 
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
@@ -48,27 +49,144 @@ def call(body) {
                     }
                 }
 
+                def prevVersion = ""
                 clientsNode {
-
                     stage("Download manifest") {
-
-                        echo "Fetching project ${project} version: ${buildVersion}"
-
+                        echo "Fetching project ${project} version: ${buildVersion} for testing"
                         withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
-                            sh "wget https://ddadmin:${PWD}@${mavenRepo}/repository/maven-releases/com/scania/dd/${project}/${buildVersion}/${project}-${buildVersion}-kubernetes.yml -O /home/jenkins/service-deployment.yaml"
+                            sh "wget https://ddadmin:${PWD}@${mavenRepo}/repository/maven-releases/com/scania/dd/${project}/${buildVersion}/${project}-${buildVersion}-kubernetes.yml -O service-deployment.yaml"
+                        }
+                        stash includes: 'service-deployment.yaml', name: 'manifest'
+
+                        container(name: 'clients') {
+                            echo "Save prev version"
+                            prevVersion = sh(script: "kubectl -n=mock get service/${project} -o jsonpath='{.metadata.labels.version}'", returnStdout: true).toString().trim()
+                            echo "Old version is: ${prevVersion}"
+                        }
+                        if (prevVersion != "") {
+                            echo "Fetching project ${project} version: ${prevVersion} for rollback"
+                            withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
+                                sh "wget https://ddadmin:${PWD}@${mavenRepo}/repository/maven-releases/com/scania/dd/${project}/${prevVersion}/${project}-${prevVersion}-kubernetes.yml -O old-service-deployment.yaml"
+                            }
+                            stash includes: 'old-service-deployment.yaml', name: 'old-manifest'
+                        } else {
+                            echo "Not fetching manifest fro rollback, as there is no previous deployed version"
+                        }
+                    }
+                }
+
+                stage("Acquire lock on mock") {
+                    lock = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
+                    while (lock == "") {
+                        echo "Waiting for lock"
+                        sleep 4
+                        lock = tryLock("mock", env.JOB_NAME, (20 + 5) * 60, 4, buildVersion)
+                    }
+                }
+
+                try {
+                    clientsNode {
+
+                        stage("Deploy to mock") {
+
+                            echo "Deploying project ${project} version: ${buildVersion}"
+                            container(name: 'clients') {
+                                unstash "manifest"
+                                sh "kubectl apply  -n=mock -f service-deployment.yaml"
+                                sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
+                            }
                         }
                     }
 
-                    stage("Deploy") {
+                    timeout(20) {
+                        mavenNode(mavenImage: 'stakater/chrome:chrome-65') {
+                            container(name: 'maven') {
+                                try {
+                                    stage("checking out mock tests") {
+                                        git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
+                                                credentialsId: 'dd_ci',
+                                                branch: 'master'
+                                    }
 
+                                    stage("running mock tests") {
+                                        sh 'chmod +x mvnw'
+                                        sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
+                                    }
+                                } finally {
+                                    zip zipFile: 'output.zip', dir: 'target', archive: true
+                                    archiveArtifacts artifacts: 'target/screenshots/*', allowEmptyArchive: true
+                                    junit 'target/surefire-reports/*.xml'
+                                }
+
+                            }
+                        }
+                    }
+                } catch (err) {
+                    if (prevVersion != "") {
+                        clientsNode {
+                            echo "There were test failures. Rolling back mock"
+                            container(name: 'clients') {
+//                            Rolling back only rolls back the deployment, the service stays:
+//                            sh "kubectl rollout undo deployment/${project} -n=mock"
+//                            If we reapply an old manifest, the service will be correct, the replica set will be reused, but the deployment/replica set will have a new revision
+                                unstash "old-manifest"
+                                sh "kubectl apply  -n=mock -f old-service-deployment.yaml"
+                                sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
+                            }
+                        }
+                    } else {
+                        echo "There were test failures, but there was no previous version, not rolling back mock"
+                    }
+                    throw err
+                } finally {
+                    releaseLock(lock)
+                }
+
+
+                clientsNode {
+
+                    stage("Deploy to dev") {
                         echo "Deploying project ${project} version: ${buildVersion}"
                         container(name: 'clients') {
-                            sh "kubectl apply  -n=${nameSpace} -f /home/jenkins/service-deployment.yaml"
+                            unstash "manifest"
+                            sh "kubectl apply  -n=${nameSpace} -f service-deployment.yaml"
                             sh "kubectl rollout status deployment/${project} -n=${nameSpace} --watch=true"
                         }
                     }
                 }
+
             }
 }
 
+private String tryLock(lock, job_name, activeWait, lockWait, buildVersion) {
+    def url = new URL("http://restful-distributed-lock-manager.tools:8080/locks/${lock}")
+    def conn = url.openConnection()
+    conn.setDoOutput(true)
+    def writer = new OutputStreamWriter(conn.getOutputStream())
+    writer.write("{\"title\": \"${job_name}-${buildVersion}\", \"lifetime\": ${activeWait}, \"wait\": ${lockWait}}")
+    writer.flush()
+    writer.close()
+
+    def responseCode = conn.getResponseCode()
+    if (responseCode == 201) {
+        def lockUrl = conn.getHeaderField("Location")
+        echo "Acquired ${lockUrl}"
+        return lockUrl
+    } else if (responseCode != 408) {
+        echo "Something went wrong when locking: ${responseCode}"
+    }
+    echo "Did not get a lock"
+    return ""
+}
+
+private void releaseLock(lockUrl) {
+    echo "Releasing ${lockUrl}"
+    def url = new URL(lockUrl)
+    def conn = url.openConnection()
+    conn.setRequestMethod("DELETE")
+    def responseCode = conn.getResponseCode()
+    if (responseCode != 204) {
+        echo "Something went wrong when releaseing the lock: ${responseCode}"
+    }
+}
 
