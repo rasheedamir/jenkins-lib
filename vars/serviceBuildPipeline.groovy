@@ -6,7 +6,7 @@ def call(body) {
     body.delegate = config
     body()
 
-    def versionPrefix = config.VERSION_PREFIX ?: "1.2"
+    def versionPrefix = config.VERSION_PREFIX ?: "1.3"
 
     def buildVersion = "${versionPrefix}.${env.BUILD_NUMBER}"
 
