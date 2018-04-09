@@ -17,6 +17,8 @@ def call(body) {
     def project
     def lock = ""
 
+    currentBuild.displayName = "${buildVersion}"
+
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
             envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
