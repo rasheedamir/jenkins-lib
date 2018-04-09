@@ -62,8 +62,20 @@ def call(body) {
 
                         container(name: 'clients') {
                             echo "Save prev version"
-                            prevVersion = sh(script: "kubectl -n=mock get service/${project} -o jsonpath='{.metadata.labels.version}'", returnStdout: true).toString().trim()
-                            echo "Old version is: ${prevVersion}"
+                            try {
+                                prevVersion = sh(script: "kubectl -n=mock get service/${project} -o jsonpath='{.metadata.labels.version}' 2>${env.WORKSPACE}/serr.txt", returnStdout: true).toString().trim()
+                                echo "Old version is: ${prevVersion}"
+                            } catch (err) {
+                                echo "Reading old version failed: $err"
+                                def errorMessage = readFile "${env.WORKSPACE}/serr.txt"
+                                echo "Message: $errorMessage"
+                                if(errorMessage.contains("(NotFound)")){
+                                    echo "Probably this is the first deployment"
+                                } else {
+                                    echo "We did not expect this!"
+                                    throw err
+                                }
+                            }
                         }
                         if (prevVersion != "") {
                             echo "Fetching project ${project} version: ${prevVersion} for rollback"
@@ -72,7 +84,7 @@ def call(body) {
                             }
                             stash includes: 'old-service-deployment.yaml', name: 'old-manifest'
                         } else {
-                            echo "Not fetching manifest fro rollback, as there is no previous deployed version"
+                            echo "Not fetching manifest for rollback, as there is no previous deployed version"
                         }
                     }
                 }
