@@ -50,10 +50,6 @@ def call(body) {
                 }
             }
 
-            stage("Tag") {
-
-            }
-
             stage("Build") {
                 withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
                                   variable: 'NEXUS_NPM_AUTH']]) {
@@ -61,15 +57,15 @@ def call(body) {
                 }
             }
 
-//                stage("Publish to nexus") {
-//                    withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
-//                                      variable: 'NEXUS_NPM_AUTH']]) {
-//                        sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} npm publish"
-//                    }
-//                }
+                stage("Publish to nexus") {
+                    withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                      variable: 'NEXUS_NPM_AUTH']]) {
+                        sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} npm publish"
+                    }
+                }
 
             stage("Upload to S3") {
-                s3Upload(file: 'lib/', bucket: '847616476486-microfrontends2', path: "${name}/${version}/")
+                s3Upload(file: 'lib/', bucket: "${params.BUCKET}", path: "${name}/${version}/")
             }
 
         }
