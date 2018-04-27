@@ -16,8 +16,13 @@ def call(body) {
             stage("Checkout") {
                 scmVars = checkout scm
                 def js_package = readJSON file: 'package.json'
-                def version_old = js_package.version.tokenize(".")
-                version = "${version_old[0]}.${version_old[1]}.${env.BUILD_NUMBER}"
+                def version_base = js_package.version.tokenize(".")
+                int version_last = sh(
+                        script: "git tag | awk -F. 'BEGIN {print \"-1\"} /v${version_base[0]}.${version_base[1]}/{print \$3}' | sort -g  | tail -1",
+                        returnStdout: true
+                )
+
+                version = "${version_base[0]}.${version_base[1]}.${version_last + 1}"
                 name = js_package.name
                 currentBuild.displayName = "${name}/${version}"
             }
