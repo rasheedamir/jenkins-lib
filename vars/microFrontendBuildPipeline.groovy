@@ -27,7 +27,7 @@ def call(body) {
                 currentBuild.displayName = "${name}/${version}"
             }
 
-            stage("Install") {
+            stage("Install Dependencies") {
                 withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
                                   variable: 'NEXUS_NPM_AUTH']]) {
                     sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn version --no-git-tag-version --new-version ${version}"
@@ -50,9 +50,9 @@ def call(body) {
                 withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
                                   variable: 'NEXUS_NPM_AUTH']]) {
                     try {
-                        sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn test-ci"
+                        sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} JEST_JUNIT_OUTPUT=\"./unit-test-report.xml\" yarn test-ci"
                     } finally {
-                        junit 'junit.xml'
+                        junit 'unit-test-report.xml'
                     }
                 }
             }
