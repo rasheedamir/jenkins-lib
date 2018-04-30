@@ -1,4 +1,5 @@
 def call(body) {
+    def credentialId = 'dd_ci'
 
     def config = [:]
 
@@ -6,18 +7,14 @@ def call(body) {
     body.delegate = config
     body()
 
-    def versionPrefix = config.VERSION_PREFIX ?: "1.3"
-
-    def buildVersion = "${versionPrefix}.${env.BUILD_NUMBER}"
-
     def kubeConfig = params.KUBE_CONFIG
     def nameSpace = params.NAMESPACE
     def mavenRepo = params.MAVEN_REPO
     def dockerRepo = params.DOCKER_URL
     def project
     def lock = ""
-
-    currentBuild.displayName = "${buildVersion}"
+    def buildVersion
+    def scmVars
 
     podTemplate(name: 'sa-secret',
             serviceAccount: 'digitaldealer-serviceaccount',
@@ -33,14 +30,29 @@ def call(body) {
                     container(name: 'maven') {
 
                         stage("checkout") {
-                            checkout scm
+                            scmVars = checkout scm
                             def pom = readMavenPom file: 'pom.xml'
                             project = pom.artifactId
+                            def versionPrefix = config.VERSION_PREFIX ?: "1.4"
+                            int version_last = sh(
+                                    script: "git tag | awk -F. 'BEGIN {print \"-1\"} /v${versionPrefix}/{print \$3}' | sort -g  | tail -1",
+                                    returnStdout: true
+                            )
+                            buildVersion = "${versionPrefix}.${version_last + 1}"
+                            currentBuild.displayName = "${buildVersion}"
                         }
 
                         stage('build') {
                             sh "git checkout -b ${env.JOB_NAME}-${buildVersion}"
                             sh "mvn org.codehaus.mojo:versions-maven-plugin:2.2:set -U -DnewVersion=${buildVersion}"
+                            withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                                sh """
+                                    git config user.name "${scmVars.GIT_AUTHOR_NAME}"
+                                    git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
+                                    git tag -am "By ${currentBuild.projectName}" v${buildVersion}
+                                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${scmVars.GIT_URL.substring(8)} v${buildVersion}
+                                """
+                            }
                             sh "mvn deploy"
                         }
 
