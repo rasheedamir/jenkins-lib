@@ -1,4 +1,5 @@
 def call(Map parameters = [:], body) {
+    def credentialId = 'dd_ci'
 
     def config = [:]
 
@@ -9,16 +10,18 @@ def call(Map parameters = [:], body) {
     try {
         versionPrefix = VERSION_PREFIX
     } catch (Throwable ignored) {
-        versionPrefix = "1.2"
+        versionPrefix = "1.4"
     }
-    def ymlVersion = "${versionPrefix}.${env.BUILD_NUMBER}"
+    def buildVersion
+    def scmVars
+    def newImageName
 
     def kubeConfig = params.KUBE_CONFIG
     def nameSpace = params.NAMESPACE
     def mavenRepo = params.MAVEN_REPO
     def dockerRepo = params.DOCKER_URL
     def serviceName = parameters.get('serviceName')
-    assert serviceName != null : "Build fails because serviceName missing"
+    assert serviceName != null: "Build fails because serviceName missing"
 
     podTemplate(envVars: [envVar(key: 'FABRIC8_DOCKER_REGISTRY_SERVICE_HOST', value: dockerRepo),
                           envVar(key: 'FABRIC8_DOCKER_REGISTRY_SERVICE_PORT', value: '443')],
@@ -27,20 +30,30 @@ def call(Map parameters = [:], body) {
             ])
             {
                 clientsK8sNode(clientsImage: 'stakater/docker-with-git:17.10') {
-                    def newImageVersion = ''
-                    def rc = ""
-
-                    def newImageName
-
-                    checkout scm
+                    stage("Checkout") {
+                        scmVars = checkout scm
+                        int version_last = sh(
+                                script: "git tag | awk -F. 'BEGIN {print \"-1\"} /v${versionPrefix}/{print \$3}' | sort -g  | tail -1",
+                                returnStdout: true
+                        )
+                        buildVersion = "${versionPrefix}.${version_last + 1}"
+                        currentBuild.displayName = "${buildVersion}"
+                    }
 
                     stage('Build Release') {
                         echo 'NOTE: running pipelines for the first time will take longer as build and base docker images are pulled onto the node'
 
                         container('clients') {
-                            newImageVersion = "v" + sh(script: 'git rev-parse --short HEAD', returnStdout: true).toString().trim()
-                            newImageName = "${dockerRepo}/${serviceName}:${newImageVersion}"
+                            newImageName = "${dockerRepo}/${serviceName}:${buildVersion}"
                             sh "docker build -t ${newImageName} ."
+                            withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                                sh """
+                                    git config user.name "${scmVars.GIT_AUTHOR_NAME}"
+                                    git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
+                                    git tag -am "By ${currentBuild.projectName}" v${buildVersion}
+                                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${scmVars.GIT_URL.substring(8)} v${buildVersion}
+                                """
+                            }
                             sh "docker push ${newImageName}"
                         }
 
@@ -48,7 +61,7 @@ def call(Map parameters = [:], body) {
                             projectName = serviceName
                             port = 8080
                             label = 'node'
-                            version = ymlVersion
+                            version = buildVersion
                             imageName = newImageName
                             dockerRegistrySecret = 'docker-registry-secret'
                             readinessProbePath = "/readiness"
@@ -75,7 +88,7 @@ def call(Map parameters = [:], body) {
                                     -DrepositoryId=nexus \
                                     -DgroupId=com.scania.dd \
                                     -DartifactId=${serviceName} \
-                                    -Dversion=${ymlVersion} \
+                                    -Dversion=${buildVersion} \
                                     -Dpackaging=yml \
                                     -Dclassifier=kubernetes \
                                     -Dfile=deployment.yaml
@@ -87,7 +100,7 @@ def call(Map parameters = [:], body) {
 
                     clientsNode {
                         stage("Deploy") {
-                            echo "Deploying project ${serviceName} image version: ${newImageVersion} yaml version: ${ymlVersion}"
+                            echo "Deploying project ${serviceName} image version: ${buildVersion} yaml version: ${buildVersion}"
                             unstash "manifest"
                             container(name: 'clients') {
                                 sh "kubectl apply  -n=${nameSpace} -f deployment.yaml"
