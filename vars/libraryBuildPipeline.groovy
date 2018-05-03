@@ -15,12 +15,11 @@ def call() {
                     scmVars = checkout scm
                     def pom = readMavenPom file: 'pom.xml'
                     def version_base = pom.version.tokenize(".-")
-                    def versionPrefix = "${version_base[0]}.${version_base[1]}"
                     int version_last = sh(
-                            script: "git tag | awk -F. 'BEGIN {print \"-1\"} /v${versionPrefix}/{print \$3}' | sort -g  | tail -1",
+                            script: "git tag | awk -F. 'BEGIN {print \"-1\"} /v${version_base[0]}\\.${version_base[1]}\\./{print \$3}' | sort -g  | tail -1",
                             returnStdout: true
                     )
-                    buildVersion = "${versionPrefix}.${version_last + 1}"
+                    buildVersion = "${version_base[0]}.${version_base[1]}.${version_last + 1}"
                     currentBuild.displayName = "${buildVersion}"
                 }
 
