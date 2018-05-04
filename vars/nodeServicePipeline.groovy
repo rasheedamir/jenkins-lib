@@ -1,4 +1,4 @@
-def call(body) {
+def call() {
 
     def kubeConfig = params.KUBE_CONFIG
     def dockerUrl = params.DOCKER_URL
@@ -54,12 +54,12 @@ def call(body) {
                             newImageName = "${dockerUrl}/${serviceName}:${newVersion}"
                             sh "docker build -t ${newImageName} ."
                             withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                                sh """
-                        git config user.name "${scmVars.GIT_AUTHOR_NAME}"
-                        git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
-                        git tag -am "By ${currentBuild.projectName}" v${newVersion}
-                        git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${scmVars.GIT_URL.substring(8)} v${newVersion}
-                    """
+                            sh """
+                                git config user.name "${scmVars.GIT_AUTHOR_NAME}"
+                                git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
+                                git tag -am "By ${currentBuild.projectName}" v${newVersion}
+                                git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${scmVars.GIT_URL.substring(8)} v${newVersion}
+                            """
                             }
                             sh "docker push ${newImageName}"
                         }
@@ -89,16 +89,16 @@ def call(body) {
                             stage("Upload to nexus") {
                                 unstash "manifest"
                                 sh """
-                    mvn deploy:deploy-file \
-                        -Durl=https://${mavenRepo}/repository/maven-releases \
-                        -DrepositoryId=nexus \
-                        -DgroupId=com.scania.dd \
-                        -DartifactId=${serviceName} \
-                        -Dversion=${newVersion} \
-                        -Dpackaging=yml \
-                        -Dclassifier=kubernetes \
-                        -Dfile=deployment.yaml
-                    """
+                                    mvn deploy:deploy-file \
+                                        -Durl=https://${mavenRepo}/repository/maven-releases \
+                                        -DrepositoryId=nexus \
+                                        -DgroupId=com.scania.dd \
+                                        -DartifactId=${serviceName} \
+                                        -Dversion=${newVersion} \
+                                        -Dpackaging=yml \
+                                        -Dclassifier=kubernetes \
+                                        -Dfile=deployment.yaml
+                                """
                                 stash name: "manifest", includes: "deployment.yaml"
                             }
                         }
