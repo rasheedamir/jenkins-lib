@@ -125,7 +125,7 @@ def call(body) {
                     }
 
                     timeout(20) {
-                        mavenNode(mavenImage: 'docker.tools.tools178.k8syard.com/chromeslave:67') {
+                        mavenNode(mavenImage: 'stakater/chrome:67') {
                             container(name: 'maven') {
                                 try {
                                     stage("checking out mock tests") {
