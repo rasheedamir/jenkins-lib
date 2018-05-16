@@ -19,14 +19,14 @@ def call(Map parameters = [:], body) {
                 lifetime: defaultLifetime,
                 wait: defaultWait
             ])
-
+    releaseLock(url)
 
     while (!hasLock(url, lockJson)) {
         echo "Waiting for lock"
         sleep 4
     }
 
-    releaseLock(url)
+
     try {
         echo 'begin execute body'
         body()
