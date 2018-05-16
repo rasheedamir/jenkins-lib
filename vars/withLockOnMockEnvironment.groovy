@@ -9,7 +9,7 @@ def call(Map parameters = [:], body) {
     body.delegate = config
 
     int defaultLifetimeInSeconds = 25 * 60
-    int defaultWaitInSeconds = 4;
+    int defaultWaitInSeconds = 5;
     URL url = new URL("http://restful-distributed-lock-manager.tools:8080/locks/mock")
 
     String lockName = parameters.get('lockName')
@@ -20,10 +20,10 @@ def call(Map parameters = [:], body) {
                 wait: defaultWaitInSeconds
             ])
 
-    URL lockUrl = acquireLock(url, lockJson)
+    URL lockUrl = null
     while (lockUrl == null) {
         echo "Waiting for lock"
-        sleep 4
+        lockUrl = acquireLock(url, lockJson)
     }
 
     try {
