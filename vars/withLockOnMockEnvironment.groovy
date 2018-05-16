@@ -28,9 +28,8 @@ def call(Map parameters = [:], body) {
 
     try {
         body()
-    } catch (Exception e){
+    } finally {
         releaseLock(lockUrl)
-        throw e
     }
 
 }
