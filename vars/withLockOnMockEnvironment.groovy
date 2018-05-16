@@ -19,25 +19,27 @@ def call(Map parameters = [:], body) {
                 lifetime: defaultLifetime,
                 wait: defaultWait
             ])
-    releaseLock(url)
 
-    while (!hasLock(url, lockJson)) {
+    URL faultyLock = new URL("http://restful-distributed-lock-manager.tools:8080/locks/mock/88599bdf89904bfdbfd9620c33851c15")
+    releaseLock(faultyLock)
+
+    URL lockUrl = acquireLock(url, lockJson)
+    while (lockUrl == null) {
         echo "Waiting for lock"
         sleep 4
     }
-
 
     try {
         echo 'begin execute body'
         body()
         echo 'end execute body'
     } finally {
-        releaseLock(url)
+        releaseLock(lockUrl)
     }
 
 }
 
-private boolean hasLock(URL url, String lockBody) {
+private URL acquireLock(URL url, String lockBody) {
 
     def connection = url.openConnection()
     connection.setDoOutput(true)
@@ -46,21 +48,19 @@ private boolean hasLock(URL url, String lockBody) {
     writer.flush()
     writer.close()
 
-    def lockAcquired
+    URL lockUrl = null;
     def responseCode = connection.getResponseCode()
     if (responseCode == 201) {
-        def location = connection.getHeaderField("Location")
-        echo "Acquired ${location}"
-        lockAcquired = true;
+        lockUrl = new URL(connection.getHeaderField("Location"))
+        echo "Acquired ${lockUrl}"
     } else {
         echo "Did not get a lock"
-        lockAcquired = false;
         if (responseCode != 408) {
             echo "Something went wrong when locking: ${responseCode}"
         }
     }
 
-    return lockAcquired;
+    return lockUrl;
 }
 
 private void releaseLock(URL lockUrl) {
