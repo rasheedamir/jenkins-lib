@@ -26,11 +26,15 @@ def call(Map parameters = [:], body) {
         sleep 4
     }
 
-    echo 'begin execute body'
-    body()
-    echo 'end execute body'
-
     releaseLock(url)
+    try {
+        echo 'begin execute body'
+        body()
+        echo 'end execute body'
+    } finally {
+        releaseLock(url)
+    }
+
 }
 
 private boolean hasLock(URL url, String lockBody) {
