@@ -109,6 +109,11 @@ def call(Map parameters = [:], body) {
                         }
                     }
 
+                    post {
+                        failure {
+                            notifySlack()
+                        }
+                    }
 
                 }
             }
