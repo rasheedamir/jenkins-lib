@@ -27,11 +27,10 @@ def call(Map parameters = [:], body) {
     }
 
     try {
-        echo 'begin execute body'
         body()
-        echo 'end execute body'
-    } finally {
+    } catch (Exception e){
         releaseLock(lockUrl)
+        throw e
     }
 
 }
