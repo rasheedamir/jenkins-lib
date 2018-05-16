@@ -8,16 +8,16 @@ def call(Map parameters = [:], body) {
     body.resolveStrategy = Closure.DELEGATE_FIRST
     body.delegate = config
 
-    int defaultLifetime = (20 + 5) * 60
-    int defaultWait = 4;
+    int defaultLifetimeInSeconds = 25 * 60
+    int defaultWaitInSeconds = 4;
     URL url = new URL("http://restful-distributed-lock-manager.tools:8080/locks/mock")
 
     String lockName = parameters.get('lockName')
     String lockJson = JsonOutput.toJson(
             [
                 title: lockName,
-                lifetime: defaultLifetime,
-                wait: defaultWait
+                lifetime: defaultLifetimeInSeconds,
+                wait: defaultWaitInSeconds
             ])
 
     URL lockUrl = acquireLock(url, lockJson)
