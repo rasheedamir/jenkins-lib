@@ -109,7 +109,11 @@ def call(Map parameters = [:], body) {
                         }
                     }
 
-                    post {
+
+                    try {
+                        echo "Hello world"
+                    }
+                    finally {
                         failure {
                             notifySlack()
                         }
