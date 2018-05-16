@@ -4,6 +4,10 @@ import groovy.json.JsonOutput
 
 def call(Map parameters = [:], body) {
 
+    def config = [:]
+    body.resolveStrategy = Closure.DELEGATE_FIRST
+    body.delegate = config
+
     int defaultLifetime = (20 + 5) * 60
     int defaultWait = 4;
     URL url = new URL("http://restful-distributed-lock-manager.tools:8080/locks/mock")
@@ -22,7 +26,9 @@ def call(Map parameters = [:], body) {
         sleep 4
     }
 
+    echo 'begin execute body'
     body()
+    echo 'end execute body'
 
     releaseLock(url)
 }
