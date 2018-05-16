@@ -20,9 +20,6 @@ def call(Map parameters = [:], body) {
                 wait: defaultWait
             ])
 
-    URL faultyLock = new URL("http://restful-distributed-lock-manager.tools:8080/locks/mock/88599bdf89904bfdbfd9620c33851c15")
-    releaseLock(faultyLock)
-
     URL lockUrl = acquireLock(url, lockJson)
     while (lockUrl == null) {
         echo "Waiting for lock"
