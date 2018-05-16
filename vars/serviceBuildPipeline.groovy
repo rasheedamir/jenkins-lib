@@ -101,64 +101,62 @@ def call(body) {
             }
         }
 
-        stage("Acquire lock on mock") {
-            String lockName = "${env.JOB_NAME}-${buildVersion}"
-            withLockOnMockEnvironment(lockName: lockName) {
-                try {
-                    clientsNode {
+        String lockName = "${env.JOB_NAME}-${buildVersion}"
+        withLockOnMockEnvironment(lockName: lockName) {
+            try {
+                clientsNode {
 
-                        stage("Deploy to mock") {
+                    stage("Deploy to mock") {
 
-                            echo "Deploying project ${project} version: ${buildVersion}"
-                            container(name: 'clients') {
-                                unstash "manifest"
-                                sh "kubectl apply  -n=mock -f service-deployment.yaml"
-                                sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
-                            }
+                        echo "Deploying project ${project} version: ${buildVersion}"
+                        container(name: 'clients') {
+                            unstash "manifest"
+                            sh "kubectl apply  -n=mock -f service-deployment.yaml"
+                            sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
                         }
                     }
+                }
 
-                    timeout(20) {
-                        mavenNode(mavenImage: 'stakater/chrome:67') {
-                            container(name: 'maven') {
-                                try {
-                                    stage("checking out mock tests") {
-                                        git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
-                                                credentialsId: 'dd_ci',
-                                                branch: 'master'
-                                    }
-
-                                    stage("running mock tests") {
-                                        sh 'chmod +x mvnw'
-                                        sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
-                                    }
-                                } finally {
-                                    zip zipFile: 'output.zip', dir: 'target', archive: true
-                                    archiveArtifacts artifacts: 'target/screenshots/*', allowEmptyArchive: true
-                                    junit 'target/surefire-reports/*.xml'
+                timeout(20) {
+                    mavenNode(mavenImage: 'stakater/chrome:67') {
+                        container(name: 'maven') {
+                            try {
+                                stage("checking out mock tests") {
+                                    git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
+                                            credentialsId: 'dd_ci',
+                                            branch: 'master'
                                 }
 
+                                stage("running mock tests") {
+                                    sh 'chmod +x mvnw'
+                                    sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
+                                }
+                            } finally {
+                                zip zipFile: 'output.zip', dir: 'target', archive: true
+                                archiveArtifacts artifacts: 'target/screenshots/*', allowEmptyArchive: true
+                                junit 'target/surefire-reports/*.xml'
                             }
+
                         }
                     }
-                } catch (err) {
-                    if (prevVersion != "") {
-                        clientsNode {
-                            echo "There were test failures. Rolling back mock"
-                            container(name: 'clients') {
-                                //Rolling back only rolls back the deployment, the service stays:
-                                //sh "kubectl rollout undo deployment/${project} -n=mock"
-                                //If we reapply an old manifest, the service will be correct, the replica set will be reused, but the deployment/replica set will have a new revision
-                                unstash "old-manifest"
-                                sh "kubectl apply  -n=mock -f old-service-deployment.yaml"
-                                sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
-                            }
-                        }
-                    } else {
-                        echo "There were test failures, but there was no previous version, not rolling back mock"
-                    }
-                    throw err
                 }
+            } catch (err) {
+                if (prevVersion != "") {
+                    clientsNode {
+                        echo "There were test failures. Rolling back mock"
+                        container(name: 'clients') {
+                            //Rolling back only rolls back the deployment, the service stays:
+                            //sh "kubectl rollout undo deployment/${project} -n=mock"
+                            //If we reapply an old manifest, the service will be correct, the replica set will be reused, but the deployment/replica set will have a new revision
+                            unstash "old-manifest"
+                            sh "kubectl apply  -n=mock -f old-service-deployment.yaml"
+                            sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
+                        }
+                    }
+                } else {
+                    echo "There were test failures, but there was no previous version, not rolling back mock"
+                }
+                throw err
             }
         }
 

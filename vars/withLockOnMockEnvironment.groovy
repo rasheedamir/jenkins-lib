@@ -21,9 +21,11 @@ def call(Map parameters = [:], body) {
             ])
 
     URL lockUrl = null
-    while (lockUrl == null) {
-        echo "Waiting for lock"
-        lockUrl = acquireLock(url, lockJson)
+    stage('Aquire lock on mock') {
+        while (lockUrl == null) {
+            echo "Waiting for lock"
+            lockUrl = acquireLock(url, lockJson)
+        }
     }
 
     try {
