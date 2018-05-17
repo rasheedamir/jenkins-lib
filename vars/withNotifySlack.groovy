@@ -4,6 +4,7 @@ def call(body) {
 
     try {
         body()
+        error("error")
     } catch (e) {
         currentBuild.result = "FAILED"
         throw e
