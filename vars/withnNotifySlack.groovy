@@ -7,14 +7,16 @@ def call(body) {
     } catch (e) {
         currentBuild.result = "FAILED"
         throw e
+
     } finally {
-        echo "Post-Build currentResult: ${currentBuild.currentResult}"
         if (currentBuild.currentResult == 'FAILURE') {
-            slackSend channel: '#jenkinstest',
+            slackSend channel: '#redlamp',
                     color: 'danger',
                     message: "Build FAILED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)",
                     teamDomain: 'digitialdealer',
                     token: '8vmDPD2QkYIX0pu3Rcf3dA4i'
+        } else if (currentBuild.currentResult == 'SUCCESS') {
+            echo "no slack msg sent"
         }
     }
 

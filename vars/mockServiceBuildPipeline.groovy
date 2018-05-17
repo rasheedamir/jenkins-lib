@@ -23,7 +23,7 @@ def call(Map parameters = [:], body) {
     def serviceName = parameters.get('serviceName')
     assert serviceName != null: "Build fails because serviceName missing"
 
-    notifySlack() {
+    withNotifySlack() {
     podTemplate(envVars: [envVar(key: 'FABRIC8_DOCKER_REGISTRY_SERVICE_HOST', value: dockerRepo),
                           envVar(key: 'FABRIC8_DOCKER_REGISTRY_SERVICE_PORT', value: '443')],
             volumes: [
