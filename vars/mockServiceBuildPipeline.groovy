@@ -22,7 +22,6 @@ def call(Map parameters = [:], body) {
     def dockerRepo = params.DOCKER_URL
     def serviceName = parameters.get('serviceName')
     assert serviceName != null: "Build fails because serviceName missing"
-    try {
 //    podTemplate(envVars: [envVar(key: 'FABRIC8_DOCKER_REGISTRY_SERVICE_HOST', value: dockerRepo),
 //                          envVar(key: 'FABRIC8_DOCKER_REGISTRY_SERVICE_PORT', value: '443')],
 //            volumes: [
@@ -112,17 +111,9 @@ def call(Map parameters = [:], body) {
 //
 //                }
 //            }
+    notifySlack(){
         error("Build failed")
-    }catch (err){
-        currentBuild.result = "FAILED"
-        throw err
     }
-    finally {
-        echo "Post-Build result: ${currentBuild.result}"
-        echo "Post-Build currentResult: ${currentBuild.currentResult}"
-        if (currentBuild.currentResult =='FAILURE') {
-            notifySlack()
 
-        }
-    }
+
 }
