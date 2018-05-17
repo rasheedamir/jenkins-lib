@@ -114,7 +114,7 @@ def call(Map parameters = [:], body) {
 //            }
         error("Build failed")
     }catch (err){
-        //currentBuild.result = "FAILED"
+        currentBuild.result = "FAILED"
         throw err
     }
     finally {
