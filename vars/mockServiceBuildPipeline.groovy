@@ -112,9 +112,10 @@ def call(Map parameters = [:], body) {
 
                     try {
                         echo "Hello world"
+                        error("Build failed because of this and that..")
                     }
                     finally {
-                        if (currentBuild.currentResult == 'SUCCESS'){
+                        if (currentBuild.currentResult == 'FAILURE'){
                             notifySlack()
                         }
 
