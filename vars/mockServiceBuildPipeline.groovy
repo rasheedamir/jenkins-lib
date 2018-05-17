@@ -115,6 +115,7 @@ def call(Map parameters = [:], body) {
                         error("Build failed because of this and that..")
                     }
                     finally {
+                        echo "Post-Build currentResult: ${currentBuild.currentResult}"
                         if (currentBuild.currentResult =='FAILURE'){
                             notifySlack()
                         }
