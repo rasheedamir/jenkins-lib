@@ -97,7 +97,7 @@ def call(Map parameters = [:], body) {
                             }
                         }
                     }
-
+                    try {
                     clientsNode {
                         stage("Deploy") {
                             echo "Deploying project ${serviceName} image version: ${buildVersion} yaml version: ${buildVersion}"
@@ -109,8 +109,6 @@ def call(Map parameters = [:], body) {
                         }
                     }
 
-
-                    try {
                         echo "Hello world"
                         error("Build failed because of this and that..")
                     }
