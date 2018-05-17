@@ -114,13 +114,13 @@ def call(Map parameters = [:], body) {
 //            }
         error("Build failed")
     }catch (err){
-        currentBuild.currentResult = 'FAILED'
+        currentBuild.result = "FAILED"
         throw err
     }
     finally {
         echo "Post-Build result: ${currentBuild.result}"
         echo "Post-Build currentResult: ${currentBuild.currentResult}"
-        if (currentBuild.currentResult =='FAILED') {
+        if (currentBuild.result =='FAILED') {
             notifySlack()
 
         }
