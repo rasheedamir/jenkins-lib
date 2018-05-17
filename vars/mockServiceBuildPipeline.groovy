@@ -97,7 +97,7 @@ def call(Map parameters = [:], body) {
                             }
                         }
                     }
-                    try {
+
                     clientsNode {
                         stage("Deploy") {
                             echo "Deploying project ${serviceName} image version: ${buildVersion} yaml version: ${buildVersion}"
@@ -108,13 +108,13 @@ def call(Map parameters = [:], body) {
                             }
                         }
                     }
-
+                    try {
                         echo "Hello world"
-                        error("Build failed because of this and that..")
+                        //error("Build failed because of this and that..")
                     }
                     finally {
                         echo "Post-Build currentResult: ${currentBuild.currentResult}"
-                        if (currentBuild.currentResult =='FAILURE'){
+                        if (currentBuild.currentResult =='SUCCESS'){
                             notifySlack()
                         }
 
