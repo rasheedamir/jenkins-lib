@@ -4,6 +4,7 @@ import jenkins.model.Jenkins
 
 def call(body) {
     def credentialsId = 'slack_token'
+    @NonCPS
     def jenkins_creds = Jenkins.instance.getExtensionList('com.cloudbees.plugins.credentials.SystemCredentialsProvider')[0]
 
     try {
