@@ -16,11 +16,11 @@ def call(body) {
 
     } finally {
         if (currentBuild.currentResult == 'FAILURE') {
-            sendSlackNotification(fail_message)
+            sendSlackNotification($fail_message)
 
         }
         if (currentBuild.previousBuild?.result == "FAILURE" && currentBuild.currentResult == 'SUCCESS') {
-            sendSlackNotification(fixed_message)
+            sendSlackNotification($fixed_message)
         }
     }
 }
