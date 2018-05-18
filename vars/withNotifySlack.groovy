@@ -5,25 +5,35 @@ import jenkins.model.Jenkins
 def call(body) {
     def credentialsId = 'slack_token'
     def channelName = '#jenkinstest'
+    def success_message = "color: 'good', Build SUCCESS -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)"
+    def fail_message = "color: 'danger', Build FAILED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)"
 
     try {
         body()
         error("Build failed")
+        //currentBuild.result = "SUCCESS"
     } catch (e) {
         currentBuild.result = "FAILED"
         throw e
 
     } finally {
         if (currentBuild.currentResult == 'FAILURE') {
-            def token = getSlackToken(credentialsId)
-            slackSend channel: "${channelName}" ,
-                    color: 'danger',
-                    message: "Build FAILED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)",
-                    teamDomain: 'digitialdealer',
-                    token: "${token}"
+            sendSlackNotification(success_message)
 
         }
+        if (currentBuild.previousBuild.result == "FAILURE" && currentBuild.currentResult == 'SUCCESS'){
+            sendSlackNotification(fail_message)
+        }
     }
+}
+
+def sendSlackNotification(String message){
+    def token = getSlackToken(credentialsId)
+    slackSend channel: "${channelName}" ,
+            ${message},
+            teamDomain: 'digitialdealer',
+            token: "${token}"
+
 }
 
     @NonCPS
