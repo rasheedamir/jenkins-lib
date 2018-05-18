@@ -1,13 +1,13 @@
 #!/usr/bin/groovy
 import jenkins.model.Jenkins
+def config = [:]
+body.resolveStrategy = Closure.DELEGATE_FIRST
+body.delegate = config
+
 
 def call(body) {
     def credentialsId = 'slack_token'
     def jenkins_creds = Jenkins.instance.getExtensionList('com.cloudbees.plugins.credentials.SystemCredentialsProvider')[0]
-
-    def config = [:]
-    body.resolveStrategy = Closure.DELEGATE_FIRST
-    body.delegate = config
 
     try {
         body()
