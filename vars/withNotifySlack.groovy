@@ -4,12 +4,11 @@ import jenkins.model.Jenkins
 
 def call(body) {
     def credentialsId = 'slack_token'
+    def channelName = '#jenkinstest'
 
     try {
-//        def config = [:]
-//        body.resolveStrategy = Closure.DELEGATE_FIRST
-//        body.delegate = config
         body()
+        error("Build failed")
     } catch (e) {
         currentBuild.result = "FAILED"
         throw e
@@ -17,7 +16,7 @@ def call(body) {
     } finally {
         if (currentBuild.currentResult == 'FAILURE') {
             def token = getSlackToken(credentialsId)
-            slackSend channel: '#jenkinstest',
+            slackSend channel: "${channelName}" ,
                     color: 'danger',
                     message: "Build FAILED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)",
                     teamDomain: 'digitialdealer',
