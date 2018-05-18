@@ -31,7 +31,7 @@ def sendSlackNotification(String message) {
     def token = getSlackToken(credentialsId)
 
     slackSend channel: "${channelName}",
-            ${message},
+            "${message}",
             teamDomain: 'digitialdealer',
             token: "${token}"
 
