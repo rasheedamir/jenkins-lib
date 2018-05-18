@@ -2,15 +2,13 @@
 import jenkins.model.Jenkins
 
 
+
 def call(body) {
-    def credentialsId = 'slack_token'
-    def channelName = '#jenkinstest'
-    def fixed_message = "color: 'good', Build FIXED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)"
+    def fixed_message = "color: 'good',  FIXED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)"
     def fail_message = "color: 'danger', Build FAILED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)"
 
     try {
         body()
-       // error("Build failed")
         currentBuild.result = "SUCCESS"
     } catch (e) {
         currentBuild.result = "FAILED"
@@ -18,36 +16,39 @@ def call(body) {
 
     } finally {
         if (currentBuild.currentResult == 'FAILURE') {
-            sendSlackNotification(fixed_message)
+            sendSlackNotification(fail_message)
 
         }
-        if (currentBuild.previousBuild?.result == "FAILURE" && currentBuild.currentResult == 'SUCCESS'){
-            sendSlackNotification(fail_message)
+        if (currentBuild.previousBuild?.result == "FAILURE" && currentBuild.currentResult == 'SUCCESS') {
+            sendSlackNotification(fixed_message)
         }
     }
 }
 
-def sendSlackNotification(String message){
+def sendSlackNotification(String message) {
+    def credentialsId = 'slack_token'
+    def channelName = '#jenkinstest'
     def token = getSlackToken(credentialsId)
-    slackSend channel: "${channelName}" ,
-            ${message},
+
+    slackSend channel: "${channelName}",
+            $ { message },
             teamDomain: 'digitialdealer',
             token: "${token}"
 
 }
 
-    @NonCPS
-    def getSlackToken(String creds) {
-        def jenkins_creds = Jenkins.instance.getExtensionList('com.cloudbees.plugins.credentials.SystemCredentialsProvider')[0]
-        String slackToken = jenkins_creds.getStore().getDomains().findResult { domain ->
-            jenkins_creds.getCredentials(domain).findResult { credential ->
-                if (creds.equals(credential.id)) {
-                    credential.getSecret()
+@NonCPS
+def getSlackToken(String creds) {
+    def jenkins_creds = Jenkins.instance.getExtensionList('com.cloudbees.plugins.credentials.SystemCredentialsProvider')[0]
+    String slackToken = jenkins_creds.getStore().getDomains().findResult { domain ->
+        jenkins_creds.getCredentials(domain).findResult { credential ->
+            if (creds.equals(credential.id)) {
+                credential.getSecret()
 
-                }
             }
         }
-        return slackToken
+    }
+    return slackToken
 }
 
 
