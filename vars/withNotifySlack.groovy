@@ -15,13 +15,12 @@ def call(body) {
 
     } finally {
         if (currentBuild.currentResult == 'FAILURE') {
-            withCredentials([string(credentialsId: credentialsId, variable: 'token')]) {
+            withCredentials([string(credentialsId: credentialsId, variable: 'token')])
                 slackSend channel: '#redlamp',
                         color: 'danger',
                         message: "Build FAILED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)",
                         teamDomain: 'digitialdealer',
                         token: $token
-            }
         }
     }
 
