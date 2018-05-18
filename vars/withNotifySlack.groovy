@@ -7,7 +7,7 @@ def call(body) {
     body.delegate = config
 
     try {
-        body()
+       // body()
         error("Build failed")
     } catch (e) {
         currentBuild.result = "FAILED"
