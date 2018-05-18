@@ -16,6 +16,7 @@ def call(body) {
         throw e
 
     } finally {
+        @NonCPS
         String slackToken = jenkins_creds.getStore().getDomains().findResult { domain ->
             jenkins_creds.getCredentials(domain).findResult { credential ->
                 if (credentialsId.equals(credential.id)) {
@@ -33,6 +34,8 @@ def call(body) {
 
         }
     }
-
-
 }
+
+
+
+
