@@ -6,9 +6,9 @@ def call(body) {
     def credentialsId = 'slack_token'
 
     try {
-        def config = [:]
-        body.resolveStrategy = Closure.DELEGATE_FIRST
-        body.delegate = config
+//        def config = [:]
+//        body.resolveStrategy = Closure.DELEGATE_FIRST
+//        body.delegate = config
         body()
     } catch (e) {
         currentBuild.result = "FAILED"
