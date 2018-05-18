@@ -5,7 +5,7 @@ import jenkins.model.Jenkins
 def call(body) {
     def credentialsId = 'slack_token'
     def channelName = '#jenkinstest'
-    def success_message = "color: 'good', Build SUCCESS -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)"
+    def fixed_message = "color: 'good', Build FIXED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)"
     def fail_message = "color: 'danger', Build FAILED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)"
 
     try {
@@ -18,7 +18,7 @@ def call(body) {
 
     } finally {
         if (currentBuild.currentResult == 'FAILURE') {
-            sendSlackNotification(success_message)
+            sendSlackNotification(fixed_message)
 
         }
         if (currentBuild.previousBuild?.result == "FAILURE" && currentBuild.currentResult == 'SUCCESS'){
