@@ -16,7 +16,7 @@ def call(body) {
 
         String slacktoken = jenkins_creds.getStore().getDomains().findResult { domain ->
             jenkins_creds.getCredentials(domain).findResult { credential ->
-                if (slackCredentialsId.equals(credentialsId)) {
+                if (credentialsId.equals(credential.id)) {
                     credential.getSecret()
                 }
             }
