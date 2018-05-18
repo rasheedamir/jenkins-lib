@@ -7,14 +7,13 @@ def call(body) {
     body.delegate = config
 
     try {
-       // body()
-        error("Build failed")
+       body()
     } catch (e) {
         currentBuild.result = "FAILED"
         throw e
 
     } finally {
-        if (currentBuild.currentResult == 'FAILURE') {
+        if (currentBuild.currentResult == 'SUCCESS') {
             withCredentials([string(credentialsId: credentialsId, variable: 'token')]) {
                 slackSend channel: '#redlamp',
                         color: 'danger',
