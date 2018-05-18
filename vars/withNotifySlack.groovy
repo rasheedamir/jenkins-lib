@@ -10,8 +10,8 @@ def call(body) {
 
     try {
         body()
-        error("Build failed")
-        //currentBuild.result = "SUCCESS"
+       // error("Build failed")
+        currentBuild.result = "SUCCESS"
     } catch (e) {
         currentBuild.result = "FAILED"
         throw e
@@ -21,7 +21,7 @@ def call(body) {
             sendSlackNotification(success_message)
 
         }
-        if (currentBuild.previousBuild.result == "FAILURE" && currentBuild.currentResult == 'SUCCESS'){
+        if (currentBuild.previousBuild?.result == "FAILURE" && currentBuild.currentResult == 'SUCCESS'){
             sendSlackNotification(fail_message)
         }
     }
