@@ -6,8 +6,7 @@ def call(body) {
     def credentialsId = 'slack_token'
 
     try {
-        //body()
-        error("Build failure")
+        body()
     } catch (e) {
         currentBuild.result = "FAILED"
         throw e
@@ -15,7 +14,7 @@ def call(body) {
     } finally {
         if (currentBuild.currentResult == 'FAILURE') {
             def token = getSlackToken(credentialsId)
-            slackSend channel: '#jenkinstest',
+            slackSend channel: '#redlamp',
                     color: 'danger',
                     message: "Build FAILED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)",
                     teamDomain: 'digitialdealer',
