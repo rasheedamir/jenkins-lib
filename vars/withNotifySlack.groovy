@@ -1,10 +1,10 @@
 #!/usr/bin/groovy
 
-def call(body) {
+def call() {
     def credentialsId = 'slack_token'
-    def config = [:]
-    body.resolveStrategy = Closure.DELEGATE_FIRST
-    body.delegate = config
+//    def config = [:]
+//    body.resolveStrategy = Closure.DELEGATE_FIRST
+//    body.delegate = config
 
     try {
       // body()
