@@ -2,9 +2,6 @@
 
 def call(body) {
     def credentialsId = 'slack_token'
-    def config = [:]
-    body.resolveStrategy = Closure.DELEGATE_FIRST
-    body.delegate = config
 
     try {
        body()
