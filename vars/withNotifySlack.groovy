@@ -1,8 +1,8 @@
 #!/usr/bin/groovy
 import jenkins.model.Jenkins
-def config = [:]
-body.resolveStrategy = Closure.DELEGATE_FIRST
-body.delegate = config
+//def config = [:]
+//body.resolveStrategy = Closure.DELEGATE_FIRST
+//body.delegate = config
 
 
 def call(body) {
@@ -11,7 +11,6 @@ def call(body) {
 
     try {
         body()
-       // error("Build failed")
     } catch (e) {
         currentBuild.result = "FAILED"
         throw e
@@ -26,7 +25,7 @@ def call(body) {
         }
 
         if (currentBuild.currentResult == 'FAILURE') {
-            slackSend channel: '#redlamp',
+            slackSend channel: '#jenkinstest',
                     color: 'danger',
                     message: "Build FAILED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)",
                     teamDomain: 'digitialdealer',
