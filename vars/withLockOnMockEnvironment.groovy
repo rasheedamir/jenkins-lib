@@ -4,30 +4,39 @@ import groovy.json.JsonOutput
 
 def call(Map parameters = [:], body) {
 
-    int defaultLifetime = (20 + 5) * 60
-    int defaultWait = 4;
+    def config = [:]
+    body.resolveStrategy = Closure.DELEGATE_FIRST
+    body.delegate = config
+
+    int defaultLifetimeInSeconds = 25 * 60
+    int defaultWaitInSeconds = 5;
     URL url = new URL("http://restful-distributed-lock-manager.tools:8080/locks/mock")
 
     String lockName = parameters.get('lockName')
     String lockJson = JsonOutput.toJson(
             [
                 title: lockName,
-                lifetime: defaultLifetime,
-                wait: defaultWait
+                lifetime: defaultLifetimeInSeconds,
+                wait: defaultWaitInSeconds
             ])
 
-
-    while (!hasLock(url, lockJson)) {
-        echo "Waiting for lock"
-        sleep 4
+    URL lockUrl = null
+    stage('Aquire lock on mock') {
+        while (lockUrl == null) {
+            echo "Waiting for lock"
+            lockUrl = acquireLock(url, lockJson)
+        }
     }
 
-    body()
+    try {
+        body()
+    } finally {
+        releaseLock(lockUrl)
+    }
 
-    releaseLock(url)
 }
 
-private boolean hasLock(URL url, String lockBody) {
+private URL acquireLock(URL url, String lockBody) {
 
     def connection = url.openConnection()
     connection.setDoOutput(true)
@@ -36,21 +45,19 @@ private boolean hasLock(URL url, String lockBody) {
     writer.flush()
     writer.close()
 
-    def lockAcquired
+    URL lockUrl = null;
     def responseCode = connection.getResponseCode()
     if (responseCode == 201) {
-        def location = connection.getHeaderField("Location")
-        echo "Acquired ${location}"
-        lockAcquired = true;
+        lockUrl = new URL(connection.getHeaderField("Location"))
+        echo "Acquired ${lockUrl}"
     } else {
         echo "Did not get a lock"
-        lockAcquired = false;
         if (responseCode != 408) {
             echo "Something went wrong when locking: ${responseCode}"
         }
     }
 
-    return lockAcquired;
+    return lockUrl;
 }
 
 private void releaseLock(URL lockUrl) {
