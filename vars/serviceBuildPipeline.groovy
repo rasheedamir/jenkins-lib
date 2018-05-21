@@ -183,6 +183,10 @@ def call(body) {
                                 sh "kubectl rollout status deployment/${project} -n=${nameSpace} --watch=true"
                             }
                         }
+
+                        stage('Deploy to prod') {
+                            build job: "${project}-prod-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
+                        }
                     }
 
                 }
