@@ -24,7 +24,6 @@ def call(body) {
     }
 }
 
-// See section "Technical Design": https://github.com/jenkinsci/workflow-cps-plugin/blob/master/README.md
 @NonCPS
 def getSlackToken(String creds) {
     def jenkins_creds = Jenkins.instance.getExtensionList('com.cloudbees.plugins.credentials.SystemCredentialsProvider')[0]
