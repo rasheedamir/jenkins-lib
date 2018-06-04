@@ -5,6 +5,8 @@ import jenkins.model.Jenkins
 def call(body) {
     def credentialsId = 'slack_token'
 
+    def ignoreJobs = ~/wip/
+
     try {
         body()
     } catch (e) {
@@ -12,11 +14,11 @@ def call(body) {
         throw e
 
     } finally {
-        if (currentBuild.currentResult == 'FAILURE') {
+        if (currentBuild.currentResult == 'FAILURE' && !(${env.JOB_NAME} =~ ignoreJobs)) {
             def token = getSlackToken(credentialsId)
             slackSend channel: '#redlamp',
                     color: 'danger',
-                    message: "Build FAILED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)",
+                    message: "Build FAILED -  Job: *${env.JOB_NAME}*,  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)",
                     teamDomain: 'digitialdealer',
                     token: "${token}"
 
