@@ -14,11 +14,11 @@ def call(body) {
         throw e
 
     } finally {
-        if (currentBuild.currentResult == 'FAILURE' && !(${env.JOB_NAME} =~ ignoreJobs)) {
+        if (currentBuild.currentResult == 'FAILURE' && !(env.JOB_NAME =~ ignoreJobs)) {
             def token = getSlackToken(credentialsId)
             slackSend channel: '#redlamp',
                     color: 'danger',
-                    message: "Build FAILED -  Job: *${env.JOB_NAME}*,  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)",
+                    message: "Build FAILED -  Job: ${env.JOB_NAME},  BuildNr: ${currentBuild.displayName} (<${env.BUILD_URL}|Go to build>)",
                     teamDomain: 'digitialdealer',
                     token: "${token}"
 
