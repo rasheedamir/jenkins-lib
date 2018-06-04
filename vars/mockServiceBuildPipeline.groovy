@@ -47,7 +47,7 @@ def call(Map parameters = [:], body) {
 
                             container('clients') {
                                 newImageName = "${dockerRepo}/${serviceName}:${buildVersion}"
-                                sh "docker build -t ${newImageName} ."
+                                sh "docker build --network=host -t ${newImageName} ."
                                 withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                                     sh """
                                     git config user.name "${scmVars.GIT_AUTHOR_NAME}"
@@ -63,6 +63,7 @@ def call(Map parameters = [:], body) {
 
                             rc = getDeploymentResourcesK8s {
                                 projectName = serviceName
+                                replicas = 1
                                 port = 8080
                                 label = 'node'
                                 version = buildVersion
@@ -72,9 +73,9 @@ def call(Map parameters = [:], body) {
                                 livenessProbePath = "/health"
                                 ingressClass = "external-ingress"
                                 resourceRequestCPU = "20m"
-                                resourceRequestMemory = "200Mi"
+                                resourceRequestMemory = "500Mi"
                                 resourceLimitCPU = "100m"
-                                resourceLimitMemory = "1100Mi"
+                                resourceLimitMemory = "500Mi"
                             }
 
                             writeFile file: "deployment.yaml", text: rc

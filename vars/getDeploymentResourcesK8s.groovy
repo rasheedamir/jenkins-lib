@@ -8,6 +8,7 @@ def call(body) {
     body()
 
     def expose = config.exposeApp ?: 'true'
+    def replicas = config.replicas ?: '2'
     def requestCPU = config.resourceRequestCPU ?: '0'
     def requestMemory = config.resourceRequestMemory ?: '0'
     def limitCPU = config.resourceLimitCPU ?: '0'
@@ -62,7 +63,7 @@ def deployment = """
       version: ${config.version}
     name: ${config.projectName}
   spec:
-    replicas: 2
+    replicas: ${replicas}
     minReadySeconds: 5
     strategy:
       type: RollingUpdate

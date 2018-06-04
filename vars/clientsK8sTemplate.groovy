@@ -28,7 +28,7 @@ def call(Map parameters = [:], body) {
                             workingDir: '/home/jenkins/',
                             ttyEnabled: true,
                             envVars: [
-                                    envVar(key: 'DOCKER_API_VERSION', value: '1.23'),
+                                    envVar(key: 'DOCKER_API_VERSION', value: '1.32'),
                                     envVar(key: 'DOCKER_CONFIG', value: '/home/jenkins/.docker/')]
                     )],
             volumes: [
