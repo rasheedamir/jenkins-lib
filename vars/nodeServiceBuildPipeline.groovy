@@ -52,7 +52,7 @@ def call() {
 
                         container('clients') {
                             newImageName = "${dockerUrl}/${serviceName}:${newVersion}"
-                            sh "docker build -t ${newImageName} ."
+                            sh "docker build --network=host -t ${newImageName} ."
                             withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                             sh """
                                 git config user.name "${scmVars.GIT_AUTHOR_NAME}"
