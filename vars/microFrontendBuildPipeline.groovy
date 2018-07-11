@@ -88,6 +88,9 @@ def call(body) {
                     s3Upload(file: 'lib/', bucket: "${params.BUCKET}", path: "${name}/${version}/")
                 }
 
+                stage('Selenium') {
+                    build job: "system-test", parameters: [[$class: 'StringParameterValue', name: 'APP_PARAMS', value: "${name}=${version}"]]
+                }
             }
         }
     }
