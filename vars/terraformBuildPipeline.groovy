@@ -45,7 +45,6 @@ def call(Map config) {
                 """).trim()
 
                 persistAwsKeys(options.aws_access_key_id, options.aws_secret_access_key, options.aws_session_token, region)
-                addHostsToKnownHosts()
 
                 checkoutRepo(options.outputRepo, options.outputRepoBranch, options.outputDir)
             }
@@ -55,7 +54,6 @@ def call(Map config) {
 
                 for (int i = 0; i < ansibleBuildItems.length; i++) {
                     AnsibleBuildItem item = ansibleBuildItems[i]
-                    addHostsToKnownHosts()
                     setGitUserInfo(item.gitUser, item.gitEmail)
                     checkoutRepo(item.repo, item.branch, item.localDir)
                     String buildDir = item.localDir + "/build/"
@@ -63,6 +61,9 @@ def call(Map config) {
                     String playbookAction = "ansible-playbook configure.yaml"
                     build(pwd(), buildDir, item.localDir, options.inputFilesName, actionDir, playbookAction, secretsFile, options.outputDir)
                 }
+                 for (int i = 0; i < ansibleBuildItems.length; i++) {
+                    printAnsibleItemPlan(ansibleBuildItems[i])
+                 }
                 for (int i = 0; i < terraformBuildItems.length; i++){
                     TerraformBuildItem item = terraformBuildItems[i]
                     terraformPlan(item, options)
@@ -74,7 +75,6 @@ def call(Map config) {
                 stage('CD: Deploy') {
 
                     println("Deploy has been set to true. Applying CD")
-                    addHostsToKnownHosts()
                     // Delete modules dirs
                     sh "rm -rf terraform-module*/"
                     for (int i = 0; i < ansibleBuildItems.length; i++) {
@@ -111,7 +111,6 @@ def call(Map config) {
                 stage('Commit') {
 
                     setGitUserInfo(options.outputGitUser, options.outputGitEmail)
-                    addHostsToKnownHosts()
                     commitChanges(options.outputDir, "update infra state")
                 }
             } else {
@@ -157,6 +156,12 @@ def build(String workspace, String buildDir, String moduleDir, String inputFile,
     """
 }
 
+def printAnsibleItemPlan(AnsibleBuildItem item){
+    sh """
+        cat ${item.localDir}/build/plan.txt 
+    """
+}
+
 def terraformPlan(TerraformBuildItem item, BuildOptions options){
     sh """
         #git ssh keys 
@@ -168,7 +173,9 @@ def terraformPlan(TerraformBuildItem item, BuildOptions options){
         terraform init -reconfigure -backend=true -get=true -input=false \
             -backend-config="bucket=${options.backendBucket}" \
         -backend-config="key=${item.backendKey}" \
-        -backend-config="region=${options.awsRegion}"
+        -backend-config="region=${options.awsRegion}" \
+        -no-color
+        
         terraform plan -out=plan.txt -input=false
     """
 
@@ -189,17 +196,6 @@ def cleanTerraformFolder(TerraformBuildItem item){
 def copyDir(String sourceDir, String destDir){
     sh """
         cp -r ${sourceDir} ${destDir} 
-    """
-}
-
-def addHostsToKnownHosts() {
-    sh """
-        mkdir -p /root/.ssh/
-        echo -e "Host github.com\\n\\tStrictHostKeyChecking no\\n" > /root/.ssh/config
-        echo -e "Host gitlab.com\\n\\tStrictHostKeyChecking no\\n" >> /root/.ssh/config
-        ssh-keyscan github.com > /root/.ssh/known_hosts
-        echo "\n" >> /root/.ssh/known_hosts
-        ssh-keyscan gitlab.com >> /root/.ssh/known_hosts
     """
 }
 
