@@ -103,7 +103,7 @@ def call(Map parameters = [:], body) {
                             }
                         }
 
-                        clientsNode {
+                        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
                             stage("Deploy") {
                                 echo "Deploying project ${serviceName} image version: ${buildVersion} yaml version: ${buildVersion}"
                                 unstash "manifest"

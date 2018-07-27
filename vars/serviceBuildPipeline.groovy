@@ -68,7 +68,7 @@ def call(body) {
                     }
 
                     def prevVersion = ""
-                    clientsNode {
+                    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
                         stage("Download manifest") {
                             echo "Fetching project ${project} version: ${buildVersion} for testing"
                             withCredentials([string(credentialsId: 'nexus', variable: 'PWD')]) {
@@ -115,7 +115,7 @@ def call(body) {
                     }
 
                     try {
-                        clientsNode {
+                        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
 
                             stage("Deploy to mock") {
 
@@ -153,7 +153,7 @@ def call(body) {
                         }
                     } catch (err) {
                         if (prevVersion != "") {
-                            clientsNode {
+                            clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
                                 echo "There were test failures. Rolling back mock"
                                 container(name: 'clients') {
 //                            Rolling back only rolls back the deployment, the service stays:
@@ -173,7 +173,7 @@ def call(body) {
                     }
 
 
-                    clientsNode {
+                    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
 
                         stage("Deploy to dev") {
                             echo "Deploying project ${project} version: ${buildVersion}"
