@@ -23,7 +23,7 @@ def call() {
                     secretVolume(secretName: 'digitaldealer-service-secret', mountPath: '/etc/secrets/service-secret')
             ])
             {
-                clientsK8sNode(clientsImage: 'stakater/docker-with-git:17.10') {
+                clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
 
                     stage("Checkout") {
                         scmVars = checkout scm
@@ -46,7 +46,7 @@ def call() {
 
                     stage('Build Release') {
                         echo 'NOTE: running pipelines for the first time will take longer as build and base docker images are pulled onto the node'
-                        if (!fileExists ('Dockerfile')) {
+                        if (!fileExists('Dockerfile')) {
                             writeFile file: 'Dockerfile', text: 'FROM node:5.3-onbuild'
                         }
 
@@ -54,7 +54,7 @@ def call() {
                             newImageName = "${dockerUrl}/${serviceName}:${newVersion}"
                             sh "docker build --network=host -t ${newImageName} ."
                             withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                            sh """
+                                sh """
                                 git config user.name "${scmVars.GIT_AUTHOR_NAME}"
                                 git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
                                 git tag -am "By ${currentBuild.projectName}" v${newVersion}
@@ -104,18 +104,14 @@ def call() {
                         }
                     }
 
-                    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
-                        stage("Deploy") {
-                            echo "Deploying project ${serviceName} version: ${newVersion}"
-                            unstash "manifest"
-                            container(name: 'clients') {
-                                sh "kubectl apply  -n=${nameSpace} -f deployment.yaml"
-                                sh "kubectl rollout status deployment/${serviceName} -n=${nameSpace}"
-                            }
+                    stage("Deploy") {
+                        echo "Deploying project ${serviceName} version: ${newVersion}"
+                        unstash "manifest"
+                        container(name: 'clients') {
+                            sh "kubectl apply  -n=${nameSpace} -f deployment.yaml"
+                            sh "kubectl rollout status deployment/${serviceName} -n=${nameSpace}"
                         }
                     }
-
-
                 }
             }
 }

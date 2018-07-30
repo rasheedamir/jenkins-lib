@@ -31,7 +31,7 @@ def call(Map parameters = [:], body) {
                         secretVolume(secretName: "${kubeConfig}", mountPath: '/home/jenkins/.kube'),
                 ])
                 {
-                    clientsK8sNode(clientsImage: 'stakater/docker-with-git:17.10') {
+                    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
                         stage("Checkout") {
                             scmVars = checkout scm
                             int version_last = sh(
@@ -103,21 +103,15 @@ def call(Map parameters = [:], body) {
                             }
                         }
 
-                        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
-                            stage("Deploy") {
-                                echo "Deploying project ${serviceName} image version: ${buildVersion} yaml version: ${buildVersion}"
-                                unstash "manifest"
-                                container(name: 'clients') {
-                                    sh "kubectl apply  -n=${nameSpace} -f deployment.yaml"
-                                    sh "kubectl rollout status deployment/${serviceName} -n=${nameSpace}"
-                                }
+                        stage("Deploy") {
+                            echo "Deploying project ${serviceName} image version: ${buildVersion} yaml version: ${buildVersion}"
+                            unstash "manifest"
+                            container(name: 'clients') {
+                                sh "kubectl apply  -n=${nameSpace} -f deployment.yaml"
+                                sh "kubectl rollout status deployment/${serviceName} -n=${nameSpace}"
                             }
                         }
-
-
                     }
                 }
     }
-
-
 }
