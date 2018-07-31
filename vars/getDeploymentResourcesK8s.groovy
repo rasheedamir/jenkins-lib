@@ -16,6 +16,7 @@ def call(body) {
     def ingressClass = config.ingressClass ?: 'unknown'
     def readinessProbePath = config.readinessProbePath ?: "/"
     def livenessProbePath = config.livenessProbePath ?: "/"
+    def configMaptoMount = config.configMapToMount
 
     def yaml
     
@@ -80,6 +81,7 @@ def deployment = """
       spec:
         imagePullSecrets:
         - name: ${config.dockerRegistrySecret}
+        terminationGracePeriodSeconds: 2
         containers:
         - env:
           - name: KUBERNETES_NAMESPACE
@@ -113,11 +115,21 @@ def deployment = """
             initialDelaySeconds: 180
             timeoutSeconds: 5
             failureThreshold: 5
-        terminationGracePeriodSeconds: 2
 """
+    if(configMaptoMount) {
+        def configMount = """
+          volumeMounts:
+          - name: config-volume
+            mountPath: /etc/config
+        volumes:
+          - name: config-volume
+            configMap:
+              name: ${configMaptoMount}
+"""
+        deployment+=configMount
+    }
 
     yaml = list + service + deployment
-
     echo 'using resources:\n' + yaml
     return yaml
 }

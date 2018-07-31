@@ -1,4 +1,4 @@
-def call() {
+def call(configMap) {
 
     def kubeConfig = params.KUBE_CONFIG
     def dockerUrl = params.DOCKER_URL
@@ -74,6 +74,7 @@ def call() {
                             readinessProbePath = "/readiness"
                             livenessProbePath = "/health"
                             ingressClass = "external-ingress"
+                            configMapToMount = configMap
                         }
 
 
