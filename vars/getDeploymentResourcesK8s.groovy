@@ -62,6 +62,8 @@ def deployment = """
       provider: fabric8
       project: ${config.projectName}
       version: ${config.version}
+    annotations:
+      configmap.reloader.stakater.com/reload: ${config.projectName}
     name: ${config.projectName}
   spec:
     replicas: ${replicas}
