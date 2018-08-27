@@ -15,6 +15,7 @@ def call(body) {
     def lock = ""
     def buildVersion
     def scmVars
+    def soapITJobName = 'soap-integration-tests'
 
     withSlackNotificatons() {
 
@@ -125,6 +126,11 @@ def call(body) {
                                     sh "kubectl apply  -n=mock -f service-deployment.yaml"
                                     sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
                                 }
+                            }
+                            
+                            stage('Run soap integration tests') {
+                                echo "Running soap integration tests on mock"
+                                build job: "${soapITJobName}"
                             }
                         }
 
