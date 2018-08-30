@@ -127,33 +127,36 @@ def call(body) {
                                     sh "kubectl rollout status deployment/${project} -n=mock --watch=true"
                                 }
                             }
-                            
-                            stage('Run soap integration tests') {
-                                echo "Running soap integration tests on mock"
-                                build job: "${soapITJobName}"
-                            }
                         }
 
                         timeout(20) {
                             mavenNode(mavenImage: 'stakater/chrome:67') {
                                 container(name: 'maven') {
-                                    try {
-                                        stage("checking out mock tests") {
-                                            git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
-                                                    credentialsId: 'dd_ci',
-                                                    branch: 'master'
+                                    
+                                    parallel SoapIntegrationTests: {
+                                        stage('Run soap integration tests') {
+                                            echo "Running soap integration tests on mock"
+                                            build job: "${soapITJobName}"
                                         }
+                                    },
+                                    SystemTests: {
+                                        try {
+                                            stage("checking out mock tests") {
+                                                git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
+                                                        credentialsId: 'dd_ci',
+                                                        branch: 'master'
+                                            }
 
-                                        stage("running mock tests") {
-                                            sh 'chmod +x mvnw'
-                                            sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
+                                            stage("running mock tests") {
+                                                sh 'chmod +x mvnw'
+                                                sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
+                                            }
+                                        } finally {
+                                            zip zipFile: 'output.zip', dir: 'target', archive: true
+                                            archiveArtifacts artifacts: 'target/screenshots/*', allowEmptyArchive: true
+                                            junit 'target/surefire-reports/*.xml'
                                         }
-                                    } finally {
-                                        zip zipFile: 'output.zip', dir: 'target', archive: true
-                                        archiveArtifacts artifacts: 'target/screenshots/*', allowEmptyArchive: true
-                                        junit 'target/surefire-reports/*.xml'
                                     }
-
                                 }
                             }
                         }
