@@ -141,13 +141,11 @@ def call(body) {
                                     },
                                     SystemTests: {
                                         try {
-                                            stage("checking out mock tests") {
+                                            stage("Run mock tests") {
                                                 git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
                                                         credentialsId: 'dd_ci',
                                                         branch: 'master'
-                                            }
-
-                                            stage("running mock tests") {
+                                                
                                                 sh 'chmod +x mvnw'
                                                 sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
                                             }
