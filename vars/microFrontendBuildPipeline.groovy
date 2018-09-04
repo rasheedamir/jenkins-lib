@@ -86,13 +86,19 @@ def call(body) {
 
                 stage("Upload to S3") {
                     s3Upload(file: 'lib/', bucket: "${params.BUCKET}", path: "${name}/${version}/")
-                    withAWS(role:"${ROLE_NAME}", roleAccount:"${ROLE_ACCOUNT_ID}",  roleSessionName: 'jenkins-upload-microfront'){
+                    withAWS(role: "${ROLE_NAME}", roleAccount: "${ROLE_ACCOUNT_ID}", roleSessionName: 'jenkins-upload-microfront') {
                         s3Upload(file: 'lib/', bucket: "${params.NEW_BUCKET}", path: "${name}/${version}/")
                     }
                 }
 
                 stage('Selenium') {
-                    build job: "system-test", parameters: [[$class: 'StringParameterValue', name: 'APP_PARAMS', value: "${name}=${version}"]]
+                    def regressionBuild
+                    try {
+                        regressionBuild = build job: "system-test", parameters: [[$class: 'StringParameterValue', name: 'APP_PARAMS', value: "${name}=${version}"]]
+                    } finally {
+                        String text = "<h2>Downstream jobs</h2><a href=\"${regressionBuild.getAbsoluteUrl()}\">${regressionBuild.getProjectName()} ${regressionBuild.getDisplayName()} - ${regressionBuild.getResult()}</a>"
+                        rtp(nullAction: '1', parserName: 'HTML', stableText: text, abortedAsStable: true, failedAsStable: true, unstableAsStable: true)
+                    }
                 }
             }
         }
