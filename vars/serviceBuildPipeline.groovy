@@ -15,6 +15,7 @@ def call(body) {
     def lock = ""
     def buildVersion
     def scmVars
+    def onlyMock = config.onlyMock ?: false
     def soapITJobName = 'soap-integration-tests'
 
     withSlackNotificatons() {
@@ -132,7 +133,7 @@ def call(body) {
                         timeout(20) {
                             mavenNode(mavenImage: 'stakater/chrome:67') {
                                 container(name: 'maven') {
-                                    
+
                                     parallel SoapIntegrationTests: {
                                         stage('Run soap integration tests') {
                                             echo "Running soap integration tests on mock"
@@ -145,7 +146,7 @@ def call(body) {
                                                 git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
                                                         credentialsId: 'dd_ci',
                                                         branch: 'master'
-                                                
+
                                                 sh 'chmod +x mvnw'
                                                 sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
                                             }
@@ -179,23 +180,25 @@ def call(body) {
                         releaseLock(lock)
                     }
 
+                    if (onlyMock) {
+                        echo "onlyMock flag enabled, skipping deployment to dev and prod"
+                    } else {
+                        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
 
-                    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
+                            stage("Deploy to dev") {
+                                echo "Deploying project ${project} version: ${buildVersion}"
+                                container(name: 'clients') {
+                                    unstash "manifest"
+                                    sh "kubectl apply  -n=${nameSpace} -f service-deployment.yaml"
+                                    sh "kubectl rollout status deployment/${project} -n=${nameSpace} --watch=true"
+                                }
+                            }
 
-                        stage("Deploy to dev") {
-                            echo "Deploying project ${project} version: ${buildVersion}"
-                            container(name: 'clients') {
-                                unstash "manifest"
-                                sh "kubectl apply  -n=${nameSpace} -f service-deployment.yaml"
-                                sh "kubectl rollout status deployment/${project} -n=${nameSpace} --watch=true"
+                            stage('Deploy to prod') {
+                                build job: "${project}-prod-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
                             }
                         }
-
-                        stage('Deploy to prod') {
-                            build job: "${project}-prod-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
-                        }
                     }
-
                 }
     }
 }
