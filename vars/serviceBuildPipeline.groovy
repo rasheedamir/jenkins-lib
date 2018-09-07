@@ -24,13 +24,33 @@ def call(body) {
                 serviceAccount: 'digitaldealer-serviceaccount',
                 envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
                 volumes: [
-                        persistentVolumeClaim(claimName: 'jenkins-m2-cache', mountPath: '/root/.mvnrepository'),
+                        secretVolume(secretName: 'jenkins-maven-settings', mountPath: '/home/jenkins/.m2'),
+                        persistentVolumeClaim(claimName: 'jenkins-m2-cache', mountPath: '/home/jenkins/.mvnrepository'),
                         secretVolume(secretName: "${kubeConfig}", mountPath: '/home/jenkins/.kube'),
                         secretVolume(secretName: 'digitaldealer-service-secret', mountPath: '/etc/secrets/service-secret')
                 ])
                 {
+                    mavenNode(maven: 'stakater/pipeline-tools:1.11.0') {
+                        container(name: 'maven') {
+                            // Ensure "jenkins" user is the owner of mounted Maven repository
+                            // As the default owner in the volume would be "root" unless changed once
+                            stage("Change Ownership") {
+                                def mvnRepository = "/home/jenkins/.mvnrepository"
+                            // Run chown only if the directory is not already owned by the jenkins user
+                                sh """
+                                    MVN_DIR_OWNER=\$(ls -ld ${mvnRepository} | awk '{print \$3}')
+                                    if [ \${MVN_DIR_OWNER} != '10000' ];
+                                    then
+                                        chown 10000 -R /home/jenkins/.mvnrepository
+                                    fi
+                                """
+                            }
+                        }
+                    }
 
-                    mavenNode(mavenImage: 'maven:3.5-jdk-8') {
+                    mavenNode(mavenImage: 'stakater/maven-jenkins:3.5.4-0.6',
+                             javaOptions: '-Duser.home=/home/jenkins -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Dsun.zip.disableMemoryMapping=true -XX:+UseParallelGC -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10 -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Xms10m -Xmx192m',
+                             mavenOpts: '-Duser.home=/home/jenkins -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn') {
                         container(name: 'maven') {
 
                             stage("checkout") {
