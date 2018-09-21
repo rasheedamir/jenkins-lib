@@ -76,7 +76,7 @@ def call(configMap) {
         }
 
         stage('Build Docker Image') {
-            clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.13.1') {
+            clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.16.0') {
                 unstash "docker build input"
                 echo 'NOTE: running pipelines for the first time will take longer as build and base docker images are pulled onto the node'
                 if (!fileExists('Dockerfile')) {
@@ -134,7 +134,7 @@ def call(configMap) {
         withLockOnMockEnvironment(lockName: lockName) {
             stage("System test") {
                 def prevVersion = ""
-                clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.13.1') {
+                clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.16.0') {
                     container(name: 'clients') {
                         try {
                             prevVersion = sh(script: "kubectl -n=mock get service/${project} -o jsonpath='{.metadata.labels.version}' 2>/tmp/serr.txt", returnStdout: true).toString().trim()
