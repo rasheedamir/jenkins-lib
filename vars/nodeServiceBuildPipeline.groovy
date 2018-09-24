@@ -11,7 +11,7 @@ def call(configMap) {
     def project
 
     podTemplate(volumes: [secretVolume(secretName: "${kubeConfig}", mountPath: '/home/jenkins/.kube')]) {
-        dockerNode(dockerImage: 'stakater/frontend-tools:0.1.0-10.11.0') {
+        dockerNode(dockerImage: 'stakater/frontend-tools:0.1.0-8.12.0') {
             container(name: 'docker') {
                 stage("Build Package") {
                     scmVars = checkout scm
