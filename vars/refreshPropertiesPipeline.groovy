@@ -9,22 +9,23 @@ def call(body) {
     def kubeConfig = params.KUBE_CONFIG
     def nameSpace = params.NAMESPACE
 
-    podTemplate(name: 'sa-secret',
-            envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
-            volumes: [
-                    secretVolume(secretName: "${kubeConfig}", mountPath: '/home/jenkins/.kube')
-            ])
-            {
+    timestamps {
+        podTemplate(name: 'sa-secret',
+                envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
+                volumes: [
+                        secretVolume(secretName: "${kubeConfig}", mountPath: '/home/jenkins/.kube')
+                ])
+                {
 
-                clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
+                    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
 
-                    stage("checkout") {
-                        checkout scm
-                    }
+                        stage("checkout") {
+                            checkout scm
+                        }
 
-                    stage("applying properties") {
-                        container(name: 'clients') {
-                            sh """
+                        stage("applying properties") {
+                            container(name: 'clients') {
+                                sh """
                                 retVal=0;
                                 for yaml in \$(find . -name '*.yaml'); do
                                   kubectl apply -n=${nameSpace} -f \$yaml;
@@ -32,10 +33,11 @@ def call(body) {
                                 done;
                                 [ \$retVal -eq 0 ]
                             """
+                            }
                         }
                     }
                 }
-            }
+    }
 }
 
 

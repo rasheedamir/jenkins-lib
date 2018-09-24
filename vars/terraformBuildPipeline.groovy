@@ -9,114 +9,116 @@ def call(Map config) {
     AnsibleBuildItem[] ansibleBuildItems = config.ansibleBuildItems
     TerraformBuildItem[] terraformBuildItems = config.terraformBuildItems
     BuildOptions options = config.options
-    if (ansibleBuildItems == null){
+    if (ansibleBuildItems == null) {
         ansibleBuildItems = []
     }
-    if(terraformBuildItems == null ){
+    if (terraformBuildItems == null) {
         terraformBuildItems = []
     }
 
-    if(options == null){
+    if (options == null) {
         error("options are null exiting")
     }
 
-    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:dev') {
+    timestamps {
+        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:dev') {
 
-        container('clients') {
+            container('clients') {
 
-            stage('Checkout Code') {
-                checkout scm
-            }
+                stage('Checkout Code') {
+                    checkout scm
+                }
 
-            stage('Prepare') {
+                stage('Prepare') {
 
-                // write secrets to file
-                sh """
+                    // write secrets to file
+                    sh """
                 touch ${secretsFile} 
                 echo "\nexport TF_VAR_database_password=\"${options.database_password}\"" >> ${secretsFile}
                 """
 
-                setGitUserInfo(options.outputGitUser, options.outputGitEmail)
+                    setGitUserInfo(options.outputGitUser, options.outputGitEmail)
 
-                // retrieve region from input file
-                region = sh(returnStdout: true, script: """
+                    // retrieve region from input file
+                    region = sh(returnStdout: true, script: """
                 source ${options.inputFilesName}
                 echo TF_VAR_region
                 """).trim()
 
-                persistAwsKeys(options.aws_access_key_id, options.aws_secret_access_key, options.aws_session_token, region)
+                    persistAwsKeys(options.aws_access_key_id, options.aws_secret_access_key, options.aws_session_token, region)
 
-                checkoutRepo(options.outputRepo, options.outputRepoBranch, options.outputDir)
-            }
-
-            stage('CI: Validate') {
-
-
-                for (int i = 0; i < ansibleBuildItems.length; i++) {
-                    AnsibleBuildItem item = ansibleBuildItems[i]
-                    setGitUserInfo(item.gitUser, item.gitEmail)
-                    checkoutRepo(item.repo, item.branch, item.localDir)
-                    String buildDir = item.localDir + "/build/"
-                    String actionDir = item.localDir + "/ansible/"
-                    String playbookAction = "ansible-playbook configure.yaml"
-                    build(pwd(), buildDir, item.localDir, options.inputFilesName, actionDir, playbookAction, secretsFile, options.outputDir)
+                    checkoutRepo(options.outputRepo, options.outputRepoBranch, options.outputDir)
                 }
-                 for (int i = 0; i < ansibleBuildItems.length; i++) {
-                    printAnsibleItemPlan(ansibleBuildItems[i])
-                 }
-                for (int i = 0; i < terraformBuildItems.length; i++){
-                    TerraformBuildItem item = terraformBuildItems[i]
-                    terraformPlan(item, options)
-                }
-            }
 
-            if (options.isCD) {
+                stage('CI: Validate') {
 
-                stage('CD: Deploy') {
 
-                    println("Deploy has been set to true. Applying CD")
-                    // Delete modules dirs
-                    sh "rm -rf terraform-module*/"
                     for (int i = 0; i < ansibleBuildItems.length; i++) {
                         AnsibleBuildItem item = ansibleBuildItems[i]
-
+                        setGitUserInfo(item.gitUser, item.gitEmail)
                         checkoutRepo(item.repo, item.branch, item.localDir)
-
                         String buildDir = item.localDir + "/build/"
                         String actionDir = item.localDir + "/ansible/"
+                        String playbookAction = "ansible-playbook configure.yaml"
+                        build(pwd(), buildDir, item.localDir, options.inputFilesName, actionDir, playbookAction, secretsFile, options.outputDir)
+                    }
+                    for (int i = 0; i < ansibleBuildItems.length; i++) {
+                        printAnsibleItemPlan(ansibleBuildItems[i])
+                    }
+                    for (int i = 0; i < terraformBuildItems.length; i++) {
+                        TerraformBuildItem item = terraformBuildItems[i]
+                        terraformPlan(item, options)
+                    }
+                }
 
-                        // retrieve action from module input file
-                        String action = sh(returnStdout: true, script: """
+                if (options.isCD) {
+
+                    stage('CD: Deploy') {
+
+                        println("Deploy has been set to true. Applying CD")
+                        // Delete modules dirs
+                        sh "rm -rf terraform-module*/"
+                        for (int i = 0; i < ansibleBuildItems.length; i++) {
+                            AnsibleBuildItem item = ansibleBuildItems[i]
+
+                            checkoutRepo(item.repo, item.branch, item.localDir)
+
+                            String buildDir = item.localDir + "/build/"
+                            String actionDir = item.localDir + "/ansible/"
+
+                            // retrieve action from module input file
+                            String action = sh(returnStdout: true, script: """
                         source input-${item.localDir}/${options.inputFilesName}
                         echo \$action
                         """).trim()
 
-                        String playbookAction = "ansible-playbook " + action
-                        build(pwd(), buildDir, item.localDir, options.inputFilesName, actionDir, playbookAction, secretsFile, options.outputDir)
+                            String playbookAction = "ansible-playbook " + action
+                            build(pwd(), buildDir, item.localDir, options.inputFilesName, actionDir, playbookAction, secretsFile, options.outputDir)
+                        }
+
+                        for (int i = 0; i < terraformBuildItems.length; i++) {
+                            TerraformBuildItem item = terraformBuildItems[i]
+                            terraformExecutePlan(item)
+                            cleanTerraformFolder(item)
+                            copyDir(item.localDir, options.outputDir)
+                        }
+
                     }
 
-                    for (int i = 0; i < terraformBuildItems.length; i++){
-                        TerraformBuildItem item = terraformBuildItems[i]
-                        terraformExecutePlan(item)
-                        cleanTerraformFolder(item)
-                        copyDir(item.localDir, options.outputDir)
+                    stage('Clean') {
+                        sh "rm ${secretsFile}"
                     }
 
+                    stage('Commit') {
+
+                        setGitUserInfo(options.outputGitUser, options.outputGitEmail)
+                        commitChanges(options.outputDir, "update infra state")
+                    }
+                } else {
+
+                    println("Deploy has been set to false. Skipping CD")
+
                 }
-
-                stage('Clean') {
-                    sh "rm ${secretsFile}"
-                }
-
-                stage('Commit') {
-
-                    setGitUserInfo(options.outputGitUser, options.outputGitEmail)
-                    commitChanges(options.outputDir, "update infra state")
-                }
-            } else {
-
-                println("Deploy has been set to false. Skipping CD")
-
             }
         }
     }
@@ -156,13 +158,13 @@ def build(String workspace, String buildDir, String moduleDir, String inputFile,
     """
 }
 
-def printAnsibleItemPlan(AnsibleBuildItem item){
+def printAnsibleItemPlan(AnsibleBuildItem item) {
     sh """
         cat ${item.localDir}/build/plan.txt 
     """
 }
 
-def terraformPlan(TerraformBuildItem item, BuildOptions options){
+def terraformPlan(TerraformBuildItem item, BuildOptions options) {
     sh """
         #git ssh keys 
         chmod 600 /root/.ssh-git/ssh-key
@@ -181,19 +183,21 @@ def terraformPlan(TerraformBuildItem item, BuildOptions options){
 
 }
 
-def terraformExecutePlan(TerraformBuildItem item){
-   sh """
+def terraformExecutePlan(TerraformBuildItem item) {
+    sh """
         cd ${item.localDir}
         terraform apply -input=false -auto-approve plan.txt > apply.txt
    """
 }
-def cleanTerraformFolder(TerraformBuildItem item){
+
+def cleanTerraformFolder(TerraformBuildItem item) {
     sh """
         rm -r ${item.localDir}/.terraform
     
     """
 }
-def copyDir(String sourceDir, String destDir){
+
+def copyDir(String sourceDir, String destDir) {
     sh """
         cp -r ${sourceDir} ${destDir} 
     """
