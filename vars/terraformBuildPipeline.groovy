@@ -21,7 +21,7 @@ def call(Map config) {
     }
 
     timestamps {
-        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:dev') {
+        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:v1.16.1') {
 
             container('clients') {
 
