@@ -1,6 +1,6 @@
 def call(body){
 
-    clientsK8sNode(clientsImage: 'mrpuurple/pipeline-tools:0.0.1') {
+    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:v1.16.2') {
         container('clients') {
                 
             stage('Checkout Code') {
@@ -28,9 +28,7 @@ def call(body){
                     ../cluster-tools/prepareTemplate.sh
                     ../cluster-tools/exportKubecfg.sh
                     ../cluster-tools/replaceCluster.sh yes
-                    
-                """
-        
+                """        
             }
         }
     }
