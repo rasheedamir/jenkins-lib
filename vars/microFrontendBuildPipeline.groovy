@@ -14,7 +14,7 @@ def call(body) {
     timestamps {
         withSlackNotificatons() {
 
-            dockerNode(dockerImage: 'stakater/frontend-tools:latest') {
+            dockerNode(dockerImage: 'stakater/frontend-tools:0.1.0-8.12.0') {
                 container(name: 'docker') {
                     stage("Checkout") {
                         scmVars = checkout scm
