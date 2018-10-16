@@ -3,13 +3,8 @@
 import groovy.json.JsonOutput
 
 def call(Map parameters = [:], body) {
-
-    def config = [:]
-    body.resolveStrategy = Closure.DELEGATE_FIRST
-    body.delegate = config
-
     int defaultLifetimeInSeconds = 25 * 60
-    int defaultWaitInSeconds = 5;
+    int defaultWaitInSeconds = 5
     URL url = new URL("http://restful-distributed-lock-manager.tools:8080/locks/mock")
 
     String lockName = parameters.get('lockName')

@@ -13,7 +13,6 @@ def call(body) {
     def buildVersion
     def scmVars
     def onlyMock = config.onlyMock ?: false
-    def soapITJobName = 'soap-integration-tests'
 
     timestamps {
         withSlackNotificatons() {
@@ -86,74 +85,12 @@ def call(body) {
                             }
                         }
 
-                        def prevVersion = ""
-                        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:1.11.0') {
-                            stage("Download manifest") {
-                                container(name: 'clients') {
-                                    echo "Save prev version"
-                                    try {
-                                        prevVersion = sh(script: "kubectl -n=mock get service/${project} -o jsonpath='{.metadata.labels.version}' 2>${env.WORKSPACE}/serr.txt", returnStdout: true).toString().trim()
-                                        echo "Old version is: ${prevVersion}"
-                                    } catch (err) {
-                                        echo "Reading old version failed: $err"
-                                        def errorMessage = readFile "${env.WORKSPACE}/serr.txt"
-                                        echo "Message: $errorMessage"
-                                        if (errorMessage.contains("(NotFound)")) {
-                                            echo "Probably this is the first deployment"
-                                        } else {
-                                            echo "We did not expect this!"
-                                            throw err
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        withLockOnMockEnvironment(lockName: "${env.JOB_NAME}-${env.BUILD_NUMBER}") {
-                            try {
-                                stage("Deploy to mock") {
-                                    build job: "${project}-mock-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
-                                }
-
-                                timeout(20) {
-                                    mavenNode(mavenImage: 'stakater/chrome:67') {
-                                        container(name: 'maven') {
-
-                                            parallel SoapIntegrationTests: {
-                                                stage('Run soap integration tests') {
-                                                    echo "Running soap integration tests on mock"
-                                                    build job: "${soapITJobName}"
-                                                }
-                                            },
-                                                    SystemTests: {
-                                                        try {
-                                                            stage("Run mock tests") {
-                                                                git url: 'https://gitlab.com/digitaldealer/systemtest2.git',
-                                                                        credentialsId: 'dd_ci',
-                                                                        branch: 'master'
-
-                                                                sh 'chmod +x mvnw'
-                                                                sh './mvnw clean test -Dbrowser=chrome -Dheadless=true -DsuiteXmlFile=smoketest-mock.xml'
-                                                            }
-                                                        } finally {
-                                                            zip zipFile: 'output.zip', dir: 'target', archive: true
-                                                            archiveArtifacts artifacts: 'target/screenshots/*', allowEmptyArchive: true
-                                                            junit 'target/surefire-reports/*.xml'
-                                                        }
-                                                    }
-                                        }
-                                    }
-                                }
-                            } catch (err) {
-                                if (prevVersion != "") {
-                                    echo "There were test failures. Rolling back mock"
-                                    build job: "${project}-mock-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: prevVersion]]
-                                } else {
-                                    echo "There were test failures, but there was no previous version, not rolling back mock"
-                                }
-                                throw err
-                            }
-                        }
+                        systemtestStage([
+                                microservice: [
+                                        name   : project,
+                                        version: buildVersion
+                                ]
+                        ])
 
                         stage("Deploy to dev") {
                             if (onlyMock) {

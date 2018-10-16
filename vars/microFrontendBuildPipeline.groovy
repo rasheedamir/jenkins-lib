@@ -92,15 +92,12 @@ def call(body) {
                         }
                     }
 
-                    stage('Selenium') {
-                        def regressionBuild
-                        try {
-                            regressionBuild = build job: "system-test", parameters: [[$class: 'StringParameterValue', name: 'APP_PARAMS', value: "${name}=${version}"]]
-                        } finally {
-                            String text = "<h2>Downstream jobs</h2><a href=\"${regressionBuild.getAbsoluteUrl()}\">${regressionBuild.getProjectName()} ${regressionBuild.getDisplayName()} - ${regressionBuild.getResult()}</a>"
-                            rtp(nullAction: '1', parserName: 'HTML', stableText: text, abortedAsStable: true, failedAsStable: true, unstableAsStable: true)
-                        }
-                    }
+                    systemtestStage([
+                            microfront: [
+                                    name   : name,
+                                    version: version
+                            ]
+                    ])
                 }
             }
         }
