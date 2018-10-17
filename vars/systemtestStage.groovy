@@ -10,7 +10,7 @@ def call(config) {
         }
 
         if( testJob.getResult() != "SUCCESS" ) {
-            currentBuild.result = 'blargh'
+            error "System test failed"
         }
     }
 }
