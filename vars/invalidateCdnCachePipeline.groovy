@@ -33,7 +33,7 @@ role_arn = arn:aws:iam::${ASSUMING_ACCOUNT}:role/CDNRole
 credential_source = Ec2InstanceMetadata
 EOF
                     cat ${HOME}.aws/config
-                    echo "aws --profile cdn-profile cloudfront create-invalidation --distribution-id ${CDN_ID} --paths \${BATCH}"
+                    aws --profile cdn-profile cloudfront create-invalidation --distribution-id ${CDN_ID} --paths \${BATCH}
                 """
             }
 
