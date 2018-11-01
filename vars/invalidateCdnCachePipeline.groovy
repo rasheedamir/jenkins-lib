@@ -9,7 +9,7 @@ def call(body){
                 sh """
                     mkdir workdir
                 """
-    
+
                 dir('workdir') {
                     git (
                         url: "https://gitlab.com/digitaldealer/i18n-locales.git",
@@ -23,7 +23,7 @@ def call(body){
 
                 sh """#!/bin/bash
                     cd workdir
-                    BATCH=`git diff | git --no-pager show HEAD^2  --name-only | awk -v ORS=' ' -F'/' '/.json\$/ {print "/i18n-locales/"\$(NF-1)"/"\$NF}'`
+                    BATCH=`git diff | git --no-pager show HEAD^1  --name-only | awk -v ORS=' ' -F'/' '/.json\$/ {print "/i18n-locales/"\$(NF-1)"/"\$NF}'`
                     echo "Paths: \${BATCH}"
                     echo "Distribustion ID: ${CDN_ID}"
                     mkdir ${HOME}.aws
@@ -33,7 +33,14 @@ role_arn = arn:aws:iam::${ASSUMING_ACCOUNT}:role/CDNRole
 credential_source = Ec2InstanceMetadata
 EOF
                     cat ${HOME}.aws/config
-                    aws --profile cdn-profile cloudfront create-invalidation --distribution-id ${CDN_ID} --paths \${BATCH}
+                    if [[ -z \${BATCH} ]]
+                    then
+                        echo ""
+                        echo "INFO - git diff found nothing to invalidate"
+                        echo ""
+                    else
+                        aws --profile cdn-profile cloudfront create-invalidation --distribution-id ${CDN_ID} --paths \${BATCH}
+                    fi
                 """
             }
 
