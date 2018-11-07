@@ -29,7 +29,7 @@ def call(body){
                     mkdir ${HOME}.aws
                     cat <<- EOF > ${HOME}.aws/config
 [profile cdn-profile]
-role_arn = arn:aws:iam::${ASSUMING_ACCOUNT}:role/CDNRole
+role_arn = arn:aws:iam::${ROLE_ACCOUNT_ID}:role/CDNRole
 credential_source = Ec2InstanceMetadata
 EOF
                     cat ${HOME}.aws/config
