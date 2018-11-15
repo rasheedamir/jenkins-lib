@@ -80,7 +80,7 @@ def call(body) {
                             }
 
                             stage('build') {
-                                gitlabCommitStatus("build") {
+                                gitlabCommitStatus(name: "build") {
                                     sh "git checkout -b ${env.JOB_NAME}-${buildVersion}"
                                     sh "mvn org.codehaus.mojo:versions-maven-plugin:2.2:set -U -DnewVersion=${buildVersion}"
                                     if (!mergeRequestBuild) {
@@ -106,12 +106,14 @@ def call(body) {
                         }
                     }
 
-                    systemtestStage([
-                            microservice: [
-                                    name: project,
-                                    version: buildVersion
-                            ]
-                    ])
+                    gitlabCommitStatus(name: "System test") {
+                        systemtestStage([
+                                microservice: [
+                                        name: project,
+                                        version: buildVersion
+                                ]
+                        ])
+                    }
 
                     stage("Deploy to dev") {
                         if (onlyMockDeploy) {
