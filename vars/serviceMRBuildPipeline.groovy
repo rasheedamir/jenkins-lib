@@ -115,6 +115,7 @@ def call(body) {
                         ])
                     }
 
+                    //TODO move if outside of stage
                     stage("Deploy to dev") {
                         if (onlyMockDeploy) {
                             echo "onlyMockDeploy flag enabled, skipping deployment to dev"
@@ -123,6 +124,7 @@ def call(body) {
                         }
                     }
 
+                    //TODO move if outside of stage
                     stage('Deploy to prod') {
                         if (onlyMockDeploy) {
                             echo "onlyMockDeploy flag enabled, skipping deployment to prod"
