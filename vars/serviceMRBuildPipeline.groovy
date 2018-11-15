@@ -79,24 +79,25 @@ def call(body) {
                                 currentBuild.displayName = "${buildVersion}"
                             }
 
-                            gitlabCommitStatus("build") {
-                                stage('build') {
+                            stage('build') {
+                                gitlabCommitStatus("build") {
                                     sh "git checkout -b ${env.JOB_NAME}-${buildVersion}"
                                     sh "mvn org.codehaus.mojo:versions-maven-plugin:2.2:set -U -DnewVersion=${buildVersion}"
                                     if (!mergeRequestBuild) {
                                         withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                                             def gitUrl = scmVars.GIT_URL.substring(8)
                                             sh """
-                                                git config user.name "${scmVars.GIT_AUTHOR_NAME}"
-                                                git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
-                                                git tag -am "By ${currentBuild.projectName}" v${buildVersion}
-                                                git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${gitUrl} v${buildVersion}
-                                            """
+                                            git config user.name "${scmVars.GIT_AUTHOR_NAME}"
+                                            git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
+                                            git tag -am "By ${currentBuild.projectName}" v${buildVersion}
+                                            git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${gitUrl} v${buildVersion}
+                                        """
                                         }
                                     }
                                     sh "mvn deploy"
                                 }
                             }
+
 
                             stage('push docker image') {
                                 sh "mvn fabric8:push -Ddocker.push.registry=${dockerRepo}"
@@ -105,14 +106,12 @@ def call(body) {
                         }
                     }
 
-                    gitlabCommitStatus("System test") {
-                        systemtestStage([
-                                microservice: [
-                                        name: project,
-                                        version: buildVersion
-                                ]
-                        ])
-                    }
+                    systemtestStage([
+                            microservice: [
+                                    name: project,
+                                    version: buildVersion
+                            ]
+                    ])
 
                     stage("Deploy to dev") {
                         if (onlyMockDeploy) {
