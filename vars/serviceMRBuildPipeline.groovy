@@ -114,7 +114,7 @@ def call(body) {
                                 forceRollbackMicroService: false)
                     }
 
-                    if (onlyMockDeploy) {
+                    if (!onlyMockDeploy) {
                         stage("Deploy to dev") {
                             build job: "${project}-dev-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
                         }
