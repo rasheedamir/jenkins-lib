@@ -22,7 +22,7 @@ def call(body) {
 
     timestamps {
         withSlackNotificatons() {
-            gitlabBuilds(builds: ["build", "System test"]) {
+            gitlabBuilds(builds: ["Build", "System test"]) {
                 podTemplate(
                         name: 'sa-secret',
                         serviceAccount: 'digitaldealer-serviceaccount',
@@ -80,24 +80,25 @@ def call(body) {
                             }
 
                             stage('build') {
-                                gitlabCommitStatus(name: "build") {
+                                gitlabCommitStatus(name: "Build") {
                                     sh "git checkout -b ${env.JOB_NAME}-${buildVersion}"
                                     sh "mvn org.codehaus.mojo:versions-maven-plugin:2.2:set -U -DnewVersion=${buildVersion}"
+
                                     if (!mergeRequestBuild) {
                                         withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                                             def gitUrl = scmVars.GIT_URL.substring(8)
                                             sh """
-                                            git config user.name "${scmVars.GIT_AUTHOR_NAME}"
-                                            git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
-                                            git tag -am "By ${currentBuild.projectName}" v${buildVersion}
-                                            git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${gitUrl} v${buildVersion}
-                                        """
+                                                git config user.name "${scmVars.GIT_AUTHOR_NAME}"
+                                                git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
+                                                git tag -am "By ${currentBuild.projectName}" v${buildVersion}
+                                                git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${gitUrl} v${buildVersion}
+                                            """
                                         }
                                     }
+
                                     sh "mvn deploy"
                                 }
                             }
-
 
                             stage('push docker image') {
                                 sh "mvn fabric8:push -Ddocker.push.registry=${dockerRepo}"
@@ -115,7 +116,6 @@ def call(body) {
                         ])
                     }
 
-                    //TODO move if outside of stage
                     stage("Deploy to dev") {
                         if (onlyMockDeploy) {
                             echo "onlyMockDeploy flag enabled, skipping deployment to dev"
@@ -124,7 +124,6 @@ def call(body) {
                         }
                     }
 
-                    //TODO move if outside of stage
                     stage('Deploy to prod') {
                         if (onlyMockDeploy) {
                             echo "onlyMockDeploy flag enabled, skipping deployment to prod"
