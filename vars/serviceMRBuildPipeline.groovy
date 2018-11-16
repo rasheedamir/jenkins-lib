@@ -42,45 +42,46 @@ def call(body) {
                                 def mvnRepository = "/home/jenkins/.mvnrepository"
                                 // Run chown only if the directory is not already owned by the jenkins user
                                 sh """
-                                        MVN_DIR_OWNER=\$(ls -ld ${mvnRepository} | awk '{print \$3}')
-                                        if [ \${MVN_DIR_OWNER} != '10000' ];
-                                        then
-                                            chown 10000 -R /home/jenkins/.mvnrepository
-                                        fi
-                                    """
+                                    
+                                    MVN_DIR_OWNER=\$(ls -ld ${mvnRepository} | awk '{print \$3}')
+                                    if [ \${MVN_DIR_OWNER} != '10000' ];
+                                    then
+                                    chown 10000 -R /home/jenkins/.mvnrepository
+                                    fi
+                                """
                             }
                         }
                     }
 
-                    mavenNode(
-                            mavenImage: 'stakater/maven-jenkins:3.5.4-0.6',
-                            javaOptions: '-Duser.home=/home/jenkins -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Dsun.zip.disableMemoryMapping=true -XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90',
-                            mavenOpts: '-Duser.home=/home/jenkins -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn') {
+                    gitlabCommitStatus(name: "Build") {
+                        mavenNode(
+                                mavenImage: 'stakater/maven-jenkins:3.5.4-0.6',
+                                javaOptions: '-Duser.home=/home/jenkins -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Dsun.zip.disableMemoryMapping=true -XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90',
+                                mavenOpts: '-Duser.home=/home/jenkins -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn') {
 
-                        container(name: 'maven') {
+                            container(name: 'maven') {
 
-                            stage("checkout") {
-                                scmVars = checkout scm
-                                def pom = readMavenPom file: 'pom.xml'
-                                project = pom.artifactId
+                                stage("checkout") {
+                                    scmVars = checkout scm
+                                    def pom = readMavenPom file: 'pom.xml'
+                                    project = pom.artifactId
 
-                                if (mergeRequestBuild) {
-                                    def branchName = env.gitlabSourceBranch
-                                    buildVersion = "${branchName}-${currentBuild.number}"
-                                } else {
-                                    def versionPrefix = config.VERSION_PREFIX ?: "1.4"
-                                    int version_last = sh(
-                                            script: "git tag | awk -F. 'BEGIN {print \"-1\"} /v${versionPrefix}/{print \$3}' | sort -g  | tail -1",
-                                            returnStdout: true
-                                    )
-                                    buildVersion = "${versionPrefix}.${version_last + 1}"
+                                    if (mergeRequestBuild) {
+                                        def branchName = env.gitlabSourceBranch
+                                        buildVersion = "${branchName}-${currentBuild.number}"
+                                    } else {
+                                        def versionPrefix = config.VERSION_PREFIX ?: "1.4"
+                                        int version_last = sh(
+                                                script: "git tag | awk -F. 'BEGIN {print \"-1\"} /v${versionPrefix}/{print \$3}' | sort -g  | tail -1",
+                                                returnStdout: true
+                                        )
+                                        buildVersion = "${versionPrefix}.${version_last + 1}"
+                                    }
+
+                                    currentBuild.displayName = "${buildVersion}"
                                 }
 
-                                currentBuild.displayName = "${buildVersion}"
-                            }
-
-                            stage('build') {
-                                gitlabCommitStatus(name: "Build") {
+                                stage('build') {
                                     sh "git checkout -b ${env.JOB_NAME}-${buildVersion}"
                                     sh "mvn org.codehaus.mojo:versions-maven-plugin:2.2:set -U -DnewVersion=${buildVersion}"
 
@@ -98,12 +99,12 @@ def call(body) {
 
                                     sh "mvn deploy"
                                 }
-                            }
 
-                            stage('push docker image') {
-                                sh "mvn fabric8:push -Ddocker.push.registry=${dockerRepo}"
-                            }
+                                stage('push docker image') {
+                                    sh "mvn fabric8:push -Ddocker.push.registry=${dockerRepo}"
+                                }
 
+                            }
                         }
                     }
 
@@ -116,18 +117,12 @@ def call(body) {
                         ])
                     }
 
-                    stage("Deploy to dev") {
-                        if (onlyMockDeploy) {
-                            echo "onlyMockDeploy flag enabled, skipping deployment to dev"
-                        } else {
+                    if (onlyMockDeploy) {
+                        stage("Deploy to dev") {
                             build job: "${project}-dev-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
                         }
-                    }
 
-                    stage('Deploy to prod') {
-                        if (onlyMockDeploy) {
-                            echo "onlyMockDeploy flag enabled, skipping deployment to prod"
-                        } else {
+                        stage('Deploy to prod') {
                             build job: "${project}-prod-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
                         }
                     }
