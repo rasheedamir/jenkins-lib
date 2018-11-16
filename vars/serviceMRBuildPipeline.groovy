@@ -9,6 +9,8 @@ def call(body) {
 
     def kubeConfig = params.KUBE_CONFIG
     def dockerRepo = params.DOCKER_URL
+
+    //TODO Change to check gitlab environment variable instead
     def mergeRequestBuild = params.MERGE_REQUEST_BUILD ?: false
 
     def onlyMock = config.onlyMock ?: false
@@ -114,6 +116,7 @@ def call(body) {
                                 forceRollbackMicroService: false)
                     }
 
+                    //TODO change variable to "positive" name
                     if (!onlyMockDeploy) {
                         stage("Deploy to dev") {
                             build job: "${project}-dev-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
