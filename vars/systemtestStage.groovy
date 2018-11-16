@@ -1,6 +1,6 @@
 import groovy.json.JsonOutput
 
-def call(config, forceRollbackMicroService = false) {
+def call(config, boolean forceRollbackMicroService = false) {
 
     stage("System test") {
         def parameters = [

@@ -109,12 +109,9 @@ def call(body) {
                     }
 
                     gitlabCommitStatus(name: "System test") {
-                        systemtestStage([
-                                microservice: [
-                                        name: project,
-                                        version: buildVersion
-                                ]
-                        ])
+                        systemtestStage(
+                                config: [microservice: [name: project, version: buildVersion]],
+                                forceRollbackMicroService: false)
                     }
 
                     if (onlyMockDeploy) {
