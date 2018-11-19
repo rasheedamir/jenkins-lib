@@ -108,9 +108,7 @@ def call(body) {
                     }
 
                     gitlabCommitStatus(name: "System test") {
-                        systemtestStage(
-                                config: [microservice: [name: project, version: buildVersion]],
-                                forceRollbackMicroService: mergeRequestBuild)
+                        systemtestStage([microservice: [name: project, version: buildVersion]], mergeRequestBuild)
                     }
 
                     if (deployToDevAndProd) {
