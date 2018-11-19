@@ -10,13 +10,11 @@ def call(body) {
     def kubeConfig = params.KUBE_CONFIG
     def dockerRepo = params.DOCKER_URL
 
-    //TODO Change to check gitlab environment variable instead
-    def mergeRequestBuild = params.MERGE_REQUEST_BUILD ?: false
-
+    def mergeRequestBuild = env.gitlabMergeRequestId != null
     def onlyMock = config.onlyMock ?: false
-    def onlyMockDeploy = mergeRequestBuild || onlyMock
 
-    echo "onlyMockDeploy: ${onlyMockDeploy}"
+    def deployToDevAndProd = !(mergeRequestBuild || onlyMock)
+    echo "deployToDevAndProd: ${deployToDevAndProd}"
 
     def project
     def buildVersion
@@ -44,7 +42,6 @@ def call(body) {
                                 def mvnRepository = "/home/jenkins/.mvnrepository"
                                 // Run chown only if the directory is not already owned by the jenkins user
                                 sh """
-                                    
                                     MVN_DIR_OWNER=\$(ls -ld ${mvnRepository} | awk '{print \$3}')
                                     if [ \${MVN_DIR_OWNER} != '10000' ];
                                     then
@@ -116,8 +113,7 @@ def call(body) {
                                 forceRollbackMicroService: false)
                     }
 
-                    //TODO change variable to "positive" name
-                    if (!onlyMockDeploy) {
+                    if (deployToDevAndProd) {
                         stage("Deploy to dev") {
                             build job: "${project}-dev-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
                         }
