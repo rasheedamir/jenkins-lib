@@ -1,10 +1,11 @@
 import groovy.json.JsonOutput
 
 def call(config, boolean forceRollbackMicroService = false) {
+
     stage("System test") {
         def parameters = [
                 [$class: 'StringParameterValue', name: 'config', value: JsonOutput.toJson(config)],
-                [$class: 'BooleanParameterValue', name: 'forceRollbackMicroService', value: forceRollbackMicroService],
+                [$class: 'BooleanParameterValue', name: 'forceRollbackMicroService', value: forceRollbackMicroService]
         ]
         def testJob = build job: "system-test", parameters: parameters, propagate: false
 
@@ -13,7 +14,7 @@ def call(config, boolean forceRollbackMicroService = false) {
             rtp(nullAction: '1', parserName: 'HTML', stableText: text, abortedAsStable: true, failedAsStable: true, unstableAsStable: true)
         }
 
-        if( testJob.getResult() != "SUCCESS" ) {
+        if (testJob.getResult() != "SUCCESS") {
             error "System test failed"
         }
     }
