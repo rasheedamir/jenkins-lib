@@ -23,6 +23,7 @@ def call(body) {
     def project
     def buildVersion
     def scmVars
+    def getVersion = isMergeRequestBuild ? { getMRVersion(env, currentBuild) } : { getBJVersion(config) }
 
     timestamps {
         withSlackNotificatons() {
@@ -69,19 +70,7 @@ def call(body) {
                                         scmVars = checkout scm
                                         def pom = readMavenPom file: 'pom.xml'
                                         project = pom.artifactId
-
-                                        if (isMergeRequestBuild) {
-                                            def branchName = env.gitlabSourceBranch
-                                            buildVersion = "${branchName}-${currentBuild.number}"
-                                        } else {
-                                            def versionPrefix = config.VERSION_PREFIX ?: "1.4"
-                                            int version_last = sh(
-                                                    script: "git tag | awk -F. 'BEGIN {print \"-1\"} /v${versionPrefix}/{print \$3}' | sort -g  | tail -1",
-                                                    returnStdout: true
-                                            )
-                                            buildVersion = "${versionPrefix}.${version_last + 1}"
-                                        }
-
+                                        buildVersion = getVersion()
                                         currentBuild.displayName = "${buildVersion}"
                                     }
 
@@ -137,4 +126,19 @@ def call(body) {
             }
         }
     }
+}
+
+String getBJVersion(config) {
+    def versionPrefix = config.VERSION_PREFIX ?: "1.4"
+    int version_last = sh(
+            script: "git tag | awk -F. 'BEGIN {print \"-1\"} /v${versionPrefix}/{print \$3}' | sort -g  | tail -1",
+            returnStdout: true
+    ) as Integer
+    return "${versionPrefix}.${version_last + 1}"
+}
+
+static String getMRVersion(env, currentBuild) {
+    def branchName = env.gitlabSourceBranch
+    def buildNumber = currentBuild.number
+    return "${branchName}-${buildNumber}"
 }
