@@ -10,7 +10,7 @@ def call(body) {
     def kubeConfig = params.KUBE_CONFIG
     def dockerRepo = params.DOCKER_URL
     def nexusHost = params.MAVEN_REPO
-    def isMergeRequestBuild = params.IS_MERGE_REQUEST_BUILD
+    def isMergeRequestBuild = params.IS_MERGE_REQUEST_BUILD ?: false
     echo "isMergeRequestBuild: ${isMergeRequestBuild}"
 
     assert !(isMergeRequestBuild && env.gitlabSourceBranch == null)
