@@ -12,6 +12,7 @@ def call(body) {
     def nexusHost = params.MAVEN_REPO
     def isMergeRequestBuild = params.IS_MERGE_REQUEST_BUILD ?: false
     echo "isMergeRequestBuild: ${isMergeRequestBuild}"
+    echo "checkoutBranch: ${env.gitlabBranch}"
 
     assert !(isMergeRequestBuild && env.gitlabSourceBranch == null)
 
@@ -19,7 +20,7 @@ def call(body) {
 
     def deployToDevAndProd = !(isMergeRequestBuild || onlyMock)
     echo "deployToDevAndProd: ${deployToDevAndProd}"
-
+    
     def project
     def buildVersion
     def scmVars
@@ -67,7 +68,7 @@ def call(body) {
                                 container(name: 'maven') {
 
                                     stage("checkout") {
-                                        scmVars = checkout scm
+                                        scmVars = checkout([$class: 'GitSCM', branches: [[name: env.gitlabBranch]], userRemoteConfigs: scm.getUserRemoteConfigs()])
                                         def pom = readMavenPom file: 'pom.xml'
                                         project = pom.artifactId
                                         buildVersion = getVersion()
