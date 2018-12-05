@@ -25,7 +25,7 @@ def call(body) {
     def project
     def buildVersion
     def scmVars
-    def getVersion = isMergeRequestBuild ? { getMRVersion(currentBuild) } : { getBJVersion(config) }
+    def getVersion = isMergeRequestBuild ? { getMRVersion(branchName, currentBuild) } : { getBJVersion(config) }
 
     timestamps {
         withSlackNotificatons() {
@@ -139,7 +139,8 @@ String getBJVersion(config) {
     return "${versionPrefix}.${version_last + 1}"
 }
 
-static String getMRVersion(currentBuild) {
+
+static String getMRVersion(branchName, currentBuild) {
     def buildNumber = currentBuild.number
     return "${branchName}-${buildNumber}"
 }
