@@ -15,6 +15,7 @@ def call(body) {
     echo "checkoutBranch: ${env.gitlabBranch}"
 
     assert !(isMergeRequestBuild && env.gitlabSourceBranch == null)
+    def branchName = isMergeRequestBuild ? env.gitlabSourceBranch : env.gitlabBranch ?: 'master'
 
     def onlyMock = config.onlyMock ?: false
 
@@ -24,7 +25,7 @@ def call(body) {
     def project
     def buildVersion
     def scmVars
-    def getVersion = isMergeRequestBuild ? { getMRVersion(env, currentBuild) } : { getBJVersion(config) }
+    def getVersion = isMergeRequestBuild ? { getMRVersion(currentBuild) } : { getBJVersion(config) }
 
     timestamps {
         withSlackNotificatons() {
@@ -68,7 +69,7 @@ def call(body) {
                                 container(name: 'maven') {
 
                                     stage("checkout") {
-                                        scmVars = checkout([$class: 'GitSCM', branches: [[name: env.gitlabBranch]], userRemoteConfigs: scm.getUserRemoteConfigs()])
+                                        scmVars = checkout([$class: 'GitSCM', branches: [[name: branchName]], userRemoteConfigs: scm.getUserRemoteConfigs()])
                                         def pom = readMavenPom file: 'pom.xml'
                                         project = pom.artifactId
                                         buildVersion = getVersion()
@@ -138,8 +139,7 @@ String getBJVersion(config) {
     return "${versionPrefix}.${version_last + 1}"
 }
 
-static String getMRVersion(env, currentBuild) {
-    def branchName = env.gitlabSourceBranch
+static String getMRVersion(currentBuild) {
     def buildNumber = currentBuild.number
     return "${branchName}-${buildNumber}"
 }
