@@ -7,99 +7,124 @@ def call(body) {
     body.delegate = config
     body()
 
-    def version
+    def mergeRequestBuild = params.MERGE_REQUEST_BUILD ?: false
+    echo "mergeRequestBuild: ${mergeRequestBuild}"
+
+    assert !(mergeRequestBuild && env.gitlabSourceBranch == null)
+
+    def buildVersion
     def name
     def scmVars
 
     timestamps {
         withSlackNotificatons() {
-
             dockerNode(dockerImage: 'stakater/frontend-tools:0.1.0-8.12.0') {
                 container(name: 'docker') {
-                    stage("Checkout") {
-                        scmVars = checkout scm
-                        def js_package = readJSON file: 'package.json'
-                        def version_base = js_package.version.tokenize(".")
-                        int version_last = sh(
-                                script: "git tag | awk -F. 'BEGIN {print \"-1\"} /v${version_base[0]}.${version_base[1]}/{print \$3}' | sort -g  | tail -1",
-                                returnStdout: true
-                        )
-
-                        version = "${version_base[0]}.${version_base[1]}.${version_last + 1}"
-                        name = js_package.name
-                        currentBuild.displayName = "${name}/${version}"
-                    }
-
-                    stage("Install Dependencies") {
-                        withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
-                                          variable: 'NEXUS_NPM_AUTH']]) {
-                            sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn version --no-git-tag-version --new-version ${version}"
-                            sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn install"
+                    try {
+                        stage("Checkout") {
+                            scmVars = checkout([$class: 'GitSCM', branches: [[name: env.gitlabBranch]], userRemoteConfigs: scm.getUserRemoteConfigs()])
+                            def js_package = readJSON file: 'package.json'
+                            name = js_package.name
+                            def version_base = js_package.version.tokenize(".")
+                            def merge_request_version_postfix = "-beta"
+                            buildVersion = mergeRequestBuild ? getBJVersion(version_base) + "${merge_request_version_postfix}" + "-${env.gitlabBranch}" : getBJVersion(version_base)
+                            currentBuild.displayName = "${buildVersion}"
                         }
-                    }
 
-                    stage("Lint") {
-                        withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
-                                          variable: 'NEXUS_NPM_AUTH']]) {
-                            try {
-                                sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn lint -f junit -o lint-report.xml"
-                            } finally {
-                                junit 'lint-report.xml'
+                        stage("Install Dependencies") {
+                            withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                              variable: 'NEXUS_NPM_AUTH']]) {
+                                sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn version --no-git-tag-version --new-version ${buildVersion}"
+                                sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn install"
                             }
                         }
-                    }
 
-                    stage("Test") {
-                        withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
-                                          variable: 'NEXUS_NPM_AUTH']]) {
-                            try {
-                                sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} JEST_JUNIT_OUTPUT=\"./unit-test-report.xml\" yarn test-ci"
-                            } finally {
-                                junit 'unit-test-report.xml'
+                        stage("Lint") {
+                            withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                              variable: 'NEXUS_NPM_AUTH']]) {
+                                try {
+                                    sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn lint -f junit -o lint-report.xml"
+                                } finally {
+                                    junit 'lint-report.xml'
+                                }
                             }
                         }
-                    }
 
-                    stage("Build") {
-                        withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
-                                          variable: 'NEXUS_NPM_AUTH']]) {
-                            sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn build"
+                        stage("Test") {
+                            withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                              variable: 'NEXUS_NPM_AUTH']]) {
+                                try {
+                                    sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} JEST_JUNIT_OUTPUT=\"./unit-test-report.xml\" yarn test-ci"
+                                } finally {
+                                    junit 'unit-test-report.xml'
+                                }
+                            }
+                        }
+
+                        stage("Build") {
+                            withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                              variable: 'NEXUS_NPM_AUTH']]) {
+                                sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn build"
+                            }
+                        }
+
+                        stage("Tag") {
+                            if (!mergeRequestBuild) {
+                                withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                                    sh """
+                            git config user.name "${scmVars.GIT_AUTHOR_NAME}" # TODO move to git config
+                            git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
+                            git tag -am "By ${currentBuild.projectName}" v${buildVersion}
+                            git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${scmVars.GIT_URL.substring(8)} v${
+                                        buildVersion
+                                    }
+                        """
+                                }
+                            } else {
+                                echo "Not tagging this build as it is a merge request build"
+                            }
+                        }
+
+                        stage("Publish to nexus") {
+                            if (!mergeRequestBuild) {
+                                withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                                  variable: 'NEXUS_NPM_AUTH']]) {
+                                    sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} npm publish"
+                                }
+                            } else {
+                                echo "Not publishing this artifact to nexus as it is a merge request build"
+                            }
+                        }
+
+                        stage("Upload to S3") {
+                            s3Upload(file: 'lib/', bucket: "${params.BUCKET}", path: "${name}/${buildVersion}/")
+                            withAWS(role: "${ROLE_NAME}", roleAccount: "${ROLE_ACCOUNT_ID}", roleSessionName: 'jenkins-upload-microfront') {
+                                s3Upload(file: 'lib/', bucket: "${params.NEW_BUCKET}", path: "${name}/${buildVersion}/")
+                            }
+                        }
+
+                        systemtestStage([
+                                microfront: [
+                                        name: name,
+                                        version: buildVersion
+                                ]
+                        ])
+                    }
+                    finally {
+                        if (mergeRequestBuild) {
+                            deleteArtifactFromS3("${ROLE_NAME}", "${ROLE_ACCOUNT_ID}", "${params.NEW_BUCKET}", "${name}/${buildVersion}/")
                         }
                     }
-
-                    stage("Tag") {
-                        withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                            sh """
-                        git config user.name "${scmVars.GIT_AUTHOR_NAME}" # TODO move to git config
-                        git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
-                        git tag -am "By ${currentBuild.projectName}" v${version}
-                        git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${scmVars.GIT_URL.substring(8)} v${version}
-                    """
-                        }
-                    }
-
-                    stage("Publish to nexus") {
-                        withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
-                                          variable: 'NEXUS_NPM_AUTH']]) {
-                            sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} npm publish"
-                        }
-                    }
-
-                    stage("Upload to S3") {
-                        s3Upload(file: 'lib/', bucket: "${params.BUCKET}", path: "${name}/${version}/")
-                        withAWS(role: "${ROLE_NAME}", roleAccount: "${ROLE_ACCOUNT_ID}", roleSessionName: 'jenkins-upload-microfront') {
-                            s3Upload(file: 'lib/', bucket: "${params.NEW_BUCKET}", path: "${name}/${version}/")
-                        }
-                    }
-
-                    systemtestStage([
-                            microfront: [
-                                    name   : name,
-                                    version: version
-                            ]
-                    ])
                 }
             }
         }
     }
+}
+
+String getBJVersion(version_base) {
+    int version_last = sh(
+            script: "git tag | awk -F. 'BEGIN {print \"-1\"} /v${version_base[0]}.${version_base[1]}/{print \$3}' | sort -g  | tail -1",
+            returnStdout: true
+    )
+    return "${version_base[0]}.${version_base[1]}.${version_last + 1}"
 }
