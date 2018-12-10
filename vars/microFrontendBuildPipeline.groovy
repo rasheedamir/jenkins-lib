@@ -9,8 +9,10 @@ def call(body) {
 
     def mergeRequestBuild = params.MERGE_REQUEST_BUILD ?: false
     echo "mergeRequestBuild: ${mergeRequestBuild}"
+    echo "checkoutBranch: ${env.gitlabBranch}"
 
     assert !(mergeRequestBuild && env.gitlabSourceBranch == null)
+    def branchName = mergeRequestBuild ? env.gitlabSourceBranch : env.gitlabBranch ?: 'master'
 
     def buildVersion
     def name
@@ -22,12 +24,12 @@ def call(body) {
                 container(name: 'docker') {
                     try {
                         stage("Checkout") {
-                            scmVars = checkout([$class: 'GitSCM', branches: [[name: env.gitlabBranch]], userRemoteConfigs: scm.getUserRemoteConfigs()])
+                            scmVars = checkout([$class: 'GitSCM', branches: [[name: branchName]], userRemoteConfigs: scm.getUserRemoteConfigs()])
                             def js_package = readJSON file: 'package.json'
                             name = js_package.name
                             def version_base = js_package.version.tokenize(".")
                             def merge_request_version_postfix = "-beta"
-                            buildVersion = mergeRequestBuild ? getBJVersion(version_base) + "${merge_request_version_postfix}" + "-${env.gitlabBranch}" : getBJVersion(version_base)
+                            buildVersion = mergeRequestBuild ? getBJVersion(version_base) + "${merge_request_version_postfix}" + "-${branchName}" : getBJVersion(version_base)
                             currentBuild.displayName = "${buildVersion}"
                         }
 
