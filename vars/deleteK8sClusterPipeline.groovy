@@ -27,8 +27,7 @@ def call(body){
                     ../cluster-tools/prepareAWSConfig.sh
                     ../cluster-tools/prepareTemplate.sh
                     ../cluster-tools/exportKubecfg.sh
-                    ../cluster-tools/deleteClusterManually.sh
-                    ../cluster-tools/deleteClusterManually.sh yes
+                    ../cluster-tools/deleteCluster.sh
                 """        
             }
         }
