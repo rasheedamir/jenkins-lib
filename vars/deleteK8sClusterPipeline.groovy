@@ -28,6 +28,7 @@ def call(body){
                     ../cluster-tools/prepareTemplate.sh
                     ../cluster-tools/exportKubecfg.sh
                     ../cluster-tools/deleteCluster.sh
+                    ../cluster-tools/deleteCluster.sh yes
                 """        
             }
         }
