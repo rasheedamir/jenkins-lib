@@ -28,8 +28,7 @@ def call(body) {
                             def js_package = readJSON file: 'package.json'
                             name = js_package.name
                             def version_base = js_package.version.tokenize(".")
-                            def merge_request_version_postfix = "-beta"
-                            buildVersion = mergeRequestBuild ? getBJVersion(version_base) + "${merge_request_version_postfix}" + "-${branchName}" : getBJVersion(version_base)
+                            buildVersion = mergeRequestBuild ? getMRVersion(version_base, branchName, currentBuild) : getBJVersion(version_base)
                             currentBuild.displayName = "${buildVersion}"
                         }
 
@@ -129,4 +128,10 @@ String getBJVersion(version_base) {
             returnStdout: true
     )
     return "${version_base[0]}.${version_base[1]}.${version_last + 1}"
+}
+
+String getMRVersion(version_base, branchName, currentBuild) {
+    def buildNumber = currentBuild.number
+    def bjVersion = getBJVersion(version_base)
+    return "${bjVersion}-beta-${branchName}-${buildNumber}"
 }
