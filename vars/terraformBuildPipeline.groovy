@@ -1,123 +1,84 @@
 import terraform.*
 
 def call(Map config) {
-// This would be a temporary file
-    String secretsFile = "secrets.sh"
 
-// will be retrieved from input file
-    String region = ""
-    AnsibleBuildItem[] ansibleBuildItems = config.ansibleBuildItems
-    TerraformBuildItem[] terraformBuildItems = config.terraformBuildItems
-    BuildOptions options = config.options
-    if (ansibleBuildItems == null) {
-        ansibleBuildItems = []
-    }
-    if (terraformBuildItems == null) {
-        terraformBuildItems = []
-    }
-
+    TerraformBuildItem options = config.options
     if (options == null) {
-        error("options are null exiting")
+        error("Error - options are null. Exiting...")
     }
+
+    String tfScriptDir = "build"    // Directory that will contain neccessary scripts for preparing the AWS, Kubernetes and invoking Terraform
+    String tfSourceDir = ""         // Directory that will contain the variables or configuration terraform will use
+    String tfModuleDir = ""         // Directory that will contain terraform modules and/or configurations 
 
     timestamps {
-        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:v1.16.1') {
+        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:v1.16.2') {
 
             container('clients') {
 
-                stage('Checkout Code') {
+                stage('Checkout') {
                     checkout scm
                 }
 
                 stage('Prepare') {
-
-                    // write secrets to file
-                    sh """
-                touch ${secretsFile} 
-                echo "\nexport TF_VAR_database_password=\"${options.database_password}\"" >> ${secretsFile}
-                """
-
                     setGitUserInfo(options.outputGitUser, options.outputGitEmail)
-
-                    // retrieve region from input file
-                    region = sh(returnStdout: true, script: """
-                source ${options.inputFilesName}
-                echo TF_VAR_region
-                """).trim()
-
-                    persistAwsKeys(options.aws_access_key_id, options.aws_secret_access_key, options.aws_session_token, region)
-
-                    checkoutRepo(options.outputRepo, options.outputRepoBranch, options.outputDir)
+                    sh """
+                        mkdir ${tfScriptDir}
+                        mkdir ${options.outputDir}
+                    """
+                    checkoutRepo('https://' + options.terraformRepo, options.terraformRepoBranch, tfScriptDir, options.gitCredID)
+                    prepareEnv(options.inputFilesName, tfScriptDir)
+                    checkoutRepo('https://' + options.outputRepo, options.outputRepoBranch, options.outputDir, options.gitCredID)
                 }
 
                 stage('CI: Validate') {
 
-
-                    for (int i = 0; i < ansibleBuildItems.length; i++) {
-                        AnsibleBuildItem item = ansibleBuildItems[i]
-                        setGitUserInfo(item.gitUser, item.gitEmail)
-                        checkoutRepo(item.repo, item.branch, item.localDir)
-                        String buildDir = item.localDir + "/build/"
-                        String actionDir = item.localDir + "/ansible/"
-                        String playbookAction = "ansible-playbook configure.yaml"
-                        build(pwd(), buildDir, item.localDir, options.inputFilesName, actionDir, playbookAction, secretsFile, options.outputDir)
+                    for (int i = 0; i < options.inputDirs.length; i++) {
+                        tfSourceDir = options.inputDirs[i]
+                        if (tfSourceDir != "input-terraform") {
+                            tfModuleDir = tfScriptDir + "/modules/terraform-postgres-module"
+                            terraformPlan(tfScriptDir, tfModuleDir, tfSourceDir, options)
+                        } else {
+                            tfModuleDir = tfScriptDir + "/modules/terraform-main"
+                            terraformPlan(tfScriptDir, tfModuleDir, tfSourceDir, options)    
+                        }
                     }
-                    for (int i = 0; i < ansibleBuildItems.length; i++) {
-                        printAnsibleItemPlan(ansibleBuildItems[i])
-                    }
-                    for (int i = 0; i < terraformBuildItems.length; i++) {
-                        TerraformBuildItem item = terraformBuildItems[i]
-                        terraformPlan(item, options)
-                    }
+                    
                 }
 
                 if (options.isCD) {
 
                     stage('CD: Deploy') {
 
-                        println("Deploy has been set to true. Applying CD")
-                        // Delete modules dirs
-                        sh "rm -rf terraform-module*/"
-                        for (int i = 0; i < ansibleBuildItems.length; i++) {
-                            AnsibleBuildItem item = ansibleBuildItems[i]
+                        println "Deploy has been set to true. Applying CD"
 
-                            checkoutRepo(item.repo, item.branch, item.localDir)
-
-                            String buildDir = item.localDir + "/build/"
-                            String actionDir = item.localDir + "/ansible/"
-
-                            // retrieve action from module input file
-                            String action = sh(returnStdout: true, script: """
-                        source input-${item.localDir}/${options.inputFilesName}
-                        echo \$action
-                        """).trim()
-
-                            String playbookAction = "ansible-playbook " + action
-                            build(pwd(), buildDir, item.localDir, options.inputFilesName, actionDir, playbookAction, secretsFile, options.outputDir)
+                        for (int i = 0; i < options.inputDirs.length; i++) {
+                            tfSourceDir = options.inputDirs[i]
+                            if (tfSourceDir != "input-terraform") {
+                                tfModuleDir = tfScriptDir + "/modules/terraform-postgres-module"
+                                terraformApply(tfScriptDir, tfModuleDir, tfSourceDir, options)
+                                copyDir(tfModuleDir + '/*', options.outputDir + '/' + tfSourceDir)
+                                copyDir(tfSourceDir + '/*', options.outputDir + '/' + tfSourceDir)
+                                copyFile(options.inputFilesName, options.outputDir + '/' + tfSourceDir + '/common_' + options.inputFilesName)
+                            } else {
+                                tfModuleDir = tfScriptDir + "/modules/terraform-main"
+                                terraformApply(tfScriptDir, tfModuleDir, tfSourceDir, options)
+                                copyDir(tfModuleDir + '/*', options.outputDir + '/' + tfSourceDir)
+                                copyDir(tfSourceDir + '/*', options.outputDir + '/' + tfSourceDir)
+                                copyFile(options.inputFilesName, options.outputDir + '/' + tfSourceDir + '/common_' + options.inputFilesName)
+                            }
                         }
 
-                        for (int i = 0; i < terraformBuildItems.length; i++) {
-                            TerraformBuildItem item = terraformBuildItems[i]
-                            terraformExecutePlan(item)
-                            cleanTerraformFolder(item)
-                            copyDir(item.localDir, options.outputDir)
-                        }
-
-                    }
-
-                    stage('Clean') {
-                        sh "rm ${secretsFile}"
                     }
 
                     stage('Commit') {
 
                         setGitUserInfo(options.outputGitUser, options.outputGitEmail)
-                        commitChanges(options.outputDir, "update infra state")
+                        commitGit(options.gitCredID, options.outputRepo, options.outputDir, "update infra state")
+
                     }
                 } else {
-
                     println("Deploy has been set to false. Skipping CD")
-
                 }
             }
         }
@@ -131,119 +92,70 @@ def setGitUserInfo(String gitUserName, String gitUserEmail) {
     """
 }
 
+def checkoutRepo(String repoUrl, String branchName, String checkoutDir, String credID) {
+    dir(checkoutDir){
+        git (
+            branch: branchName,
+            url: repoUrl,
+            credentialsId: credID
+        )
+    }
+}
 
-def build(String workspace, String buildDir, String moduleDir, String inputFile, String actionDir, String action, String secretsFile, String outputDir) {
-
-
+def prepareEnv(String inputFile, String tfScriptDir) {
     sh """
-        cd ${workspace}
-        mkdir -p ${buildDir}
-        # copy additional input file to build dir
-        cp input-${moduleDir}/${inputFile} ${buildDir}
-        # append an extra line into the additional input file in build dir
-        echo "\n" >> ${buildDir}/${inputFile}
-        # now append input file into the additional input file in build dir
-        cat ${inputFile} >> ${buildDir}/${inputFile}
-        # copy secrets file into the build dir
-        cp ${secretsFile} ${buildDir}/
-        # perform the action
-        cd ${actionDir}
-        ${action}
-        cd ${workspace}
-        # delete secrets file from the build dir
-        rm -f ${buildDir}/${secretsFile}
-        # now copy build dir contents into output repo to be commited
-        mkdir -p ${outputDir}/${moduleDir}
-        cp -r ${buildDir}/* ${outputDir}/${moduleDir}
+        mkdir ${HOME}.aws
+        mkdir ${HOME}.kube
+        ${tfScriptDir}/prepareAWSConfig.sh ${inputFile}
+        ${tfScriptDir}/prepareKubeConfig.sh ${inputFile}
     """
 }
 
-def printAnsibleItemPlan(AnsibleBuildItem item) {
+def terraformPlan(String tfScriptDir, String tfModuleDir, String tfSourceDir, TerraformBuildItem options) {
     sh """
-        cat ${item.localDir}/build/plan.txt 
+        set -o pipefail
+        export workingDir=\$(pwd)
+        cd ${tfModuleDir}
+        \${workingDir}/${tfScriptDir}/init.sh \${workingDir}/${options.inputFilesName} \${workingDir}/${tfSourceDir}/${options.inputFilesName} | tee plan.txt
+        rm --recursive --force .terraform
     """
 }
 
-def terraformPlan(TerraformBuildItem item, BuildOptions options) {
+def terraformApply(String tfScriptDir, String tfModuleDir, String tfSourceDir, TerraformBuildItem options) {
     sh """
-        #git ssh keys 
-        chmod 600 /root/.ssh-git/ssh-key
-        eval `ssh-agent -s`
-        ssh-add /root/.ssh-git/ssh-key
-        
-        cd ${item.localDir}
-        terraform init -reconfigure -backend=true -get=true -input=false \
-            -backend-config="bucket=${options.backendBucket}" \
-        -backend-config="key=${item.backendKey}" \
-        -backend-config="region=${options.awsRegion}" \
-        -no-color
-        
-        terraform plan -out=plan.txt -input=false
-    """
-
-}
-
-def terraformExecutePlan(TerraformBuildItem item) {
-    sh """
-        cd ${item.localDir}
-        terraform apply -input=false -auto-approve plan.txt > apply.txt
-   """
-}
-
-def cleanTerraformFolder(TerraformBuildItem item) {
-    sh """
-        rm -r ${item.localDir}/.terraform
-    
+        set -o pipefail
+        export workingDir=\$(pwd) 
+        cd ${tfModuleDir}
+        \${workingDir}/${tfScriptDir}/apply.sh \${workingDir}/${options.inputFilesName} \${workingDir}/${tfSourceDir}/${options.inputFilesName} | tee apply.txt
+        rm --recursive --force .terraform
     """
 }
 
 def copyDir(String sourceDir, String destDir) {
     sh """
-        cp -r ${sourceDir} ${destDir} 
+        test -d ${destDir} || mkdir --parents --verbose ${destDir}
+        cp --verbose ${sourceDir} ${destDir}
     """
 }
 
-def commitChanges(String repoDir, String commitMessage) {
-    // TODO: Find a solution for eval `ssh-agent -s` runned everytime
-    // https://aurorasolutions.atlassian.net/browse/STK-11
-    String messageToCheck = "nothing to commit, working tree clean"
+def copyFile(String sourceFile, String destFile) {
     sh """
-        chmod 600 /root/.ssh-git/ssh-key
-        eval `ssh-agent -s`
-        ssh-add /root/.ssh-git/ssh-key
-        cd ${repoDir}
-        git add .
-        if ! git status | grep '${messageToCheck}' ; then
-            git commit -m "${commitMessage}"
-            git push
-        else
-            echo \"nothing to do\"
-        fi
+        test -f ${sourceFile} && cp --verbose ${sourceFile} ${destFile}
     """
 }
 
-
-def persistAwsKeys(String aws_access_key_id, String aws_secret_access_key, String aws_session_token, String aws_region) {
-    sh """
-        cd \$HOME
-        mkdir -p .aws/
-        echo "[default]\naws_access_key_id = ${aws_access_key_id}\naws_secret_access_key = ${
-        aws_secret_access_key
-    }\naws_session_token = ${aws_session_token}" > .aws/credentials
-        echo "[default]\nregion = ${aws_region}" > .aws/config
-    """
+def commitGit(String gitCredID, String repoUrl, String repoDir, String commitMessage) {
+    withCredentials([usernamePassword(credentialsId: gitCredID, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+        String messageToCheck = "nothing to commit, working tree clean"
+        sh """
+            cd ${repoDir}
+            git add .
+            if ! git status | grep '${messageToCheck}' ; then
+                git commit -m "${commitMessage}"
+                git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${repoUrl}
+            else
+                echo \"nothing to do\"
+            fi
+        """
+    }
 }
-
-def checkoutRepo(String repo, String branch, String dir) {
-    // TODO: Find a solution for eval `ssh-agent -s` runned everytime
-    // https://aurorasolutions.atlassian.net/browse/STK-11
-    sh """
-        chmod 600 /root/.ssh-git/ssh-key
-        eval `ssh-agent -s`
-        ssh-add /root/.ssh-git/ssh-key
-
-        rm -rf ${dir}
-        git clone -b ${branch} ${repo} ${dir}
-    """
-}
-
