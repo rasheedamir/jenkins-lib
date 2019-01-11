@@ -1,6 +1,6 @@
 def call(body){
 
-    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:v1.16.2') {
+    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:v1.16.3') {
         container('clients') {
                 
             stage('Checkout Code') {
