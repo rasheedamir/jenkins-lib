@@ -103,13 +103,6 @@ def call(body) {
                                 s3Upload(file: 'lib/', bucket: "${params.NEW_BUCKET}", path: "${name}/${buildVersion}/")
                             }
                         }
-
-                        systemtestStage([
-                                microfront: [
-                                        name: name,
-                                        version: buildVersion
-                                ]
-                        ])
                     }
                     finally {
                         if (mergeRequestBuild) {
