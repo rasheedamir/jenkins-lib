@@ -9,7 +9,7 @@ def call() {
                 volumes: [
                         persistentVolumeClaim(claimName: 'jenkins-m2-cache', mountPath: '/root/.mvnrepository')
                 ]) {
-            mavenNode(mavenImage: 'maven:3.5-jdk-8') {
+            mavenNode(mavenImage: 'maven:3.5.4-jdk-8-alpine') {
                 container(name: 'maven') {
 
                     stage("checkout") {
