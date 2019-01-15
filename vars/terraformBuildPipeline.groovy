@@ -12,7 +12,7 @@ def call(Map config) {
     String tfModuleDir = ""         // Directory that will contain terraform modules and/or configurations 
 
     timestamps {
-        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:v1.16.2') {
+        clientsK8sNode(clientsImage: 'stakater/pipeline-tools:v1.16.3') {
 
             container('clients') {
 
