@@ -7,13 +7,9 @@ def call(body) {
     body.delegate = config
     body()
 
-    def sonarScanQueryInterval = config.sonarScanQueryInterval ?: 5000
-    def sonarScanQueryMaxAttempts = config.sonarScanQueryMaxAttempts ?: 240
-
     def kubeConfig = params.KUBE_CONFIG
     def dockerRepo = params.DOCKER_URL
     def nexusHost = params.MAVEN_REPO
-    def sonarQubeHost = params.SONARQUBE_HOST
     def isMergeRequestBuild = params.IS_MERGE_REQUEST_BUILD ?: false
     echo "isMergeRequestBuild: ${isMergeRequestBuild}"
     echo "checkoutBranch: ${env.gitlabBranch}"
@@ -38,10 +34,7 @@ def call(body) {
                     podTemplate(
                             name: 'sa-secret',
                             serviceAccount: 'digitaldealer-serviceaccount',
-                            envVars: [
-                                envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443'),
-                                secretEnvVar(key: 'SONARQUBE_TOKEN', secretName: 'jenkins-sonarqube', secretKey: 'token')
-                            ],
+                            envVars: [envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443')],
                             volumes: [
                                     secretVolume(secretName: 'jenkins-maven-settings', mountPath: '/home/jenkins/.m2'),
                                     persistentVolumeClaim(claimName: 'jenkins-m2-cache', mountPath: '/home/jenkins/.mvnrepository'),
@@ -69,7 +62,7 @@ def call(body) {
 
                         gitlabCommitStatus(name: "Build") {
                             mavenNode(
-                                    mavenImage: 'stakater/builder-maven:3.5.4-jdk1.8-v1.16.8-v0.0.4',
+                                    mavenImage: 'stakater/maven-jenkins:3.5.4-0.6',
                                     javaOptions: '-Duser.home=/home/jenkins -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Dsun.zip.disableMemoryMapping=true -XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90',
                                     mavenOpts: '-Duser.home=/home/jenkins -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn') {
 
@@ -102,24 +95,6 @@ def call(body) {
                                         }
 
                                         sh "mvn deploy"
-                                    }
-
-                                    stage('SonarQube Analysis') {
-                                        sh """
-                                            /bin/sonar-scanner \
-                                                -Dsonar.host.url=${sonarQubeHost} \
-                                                -Dsonar.login=\${SONARQUBE_TOKEN} \
-                                                -Dsonar.projectKey=${project} \
-                                                -Dsonar.projectVersion=${buildVersion} \
-                                                -Dsonar.sources="src/main/java" \
-                                                -Dsonar.tests="src/test/java" \
-                                                -Dsonar.java.binaries="target/classes" \
-                                                -Dsonar.junit.reportPaths="target/surefire-reports" \
-                                                -Dsonar.jacoco.reportPaths="target/jacoco.exec" \
-                                                -Dsonar.buildbreaker.alternativeServerUrl=${sonarQubeHost}
-                                                -Dsonar.buildbreaker.queryInterval=${sonarScanQueryInterval} \
-                                                -Dsonar.buildbreaker.queryMaxAttempts=${sonarScanQueryMaxAttempts}
-                                        """
                                     }
 
                                     stage('push docker image') {
