@@ -98,7 +98,7 @@ def call(body) {
                         }
 
                         stage("Upload to S3") {
-                            s3Upload(file: 'lib/', bucket: "${params.BUCKET}", path: "${name}/${buildVersion}/")
+//                            s3Upload(file: 'lib/', bucket: "${params.BUCKET}", path: "${name}/${buildVersion}/")
                             withAWS(role: "${ROLE_NAME}", roleAccount: "${ROLE_ACCOUNT_ID}", roleSessionName: 'jenkins-upload-microfront') {
                                 s3Upload(file: 'lib/', bucket: "${params.NEW_BUCKET}", path: "${name}/${buildVersion}/")
                             }
