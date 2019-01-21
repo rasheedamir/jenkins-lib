@@ -17,7 +17,7 @@ def call(body) {
                 ])
                 {
 
-                    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:v1.16.3') {
+                    clientsK8sNode(clientsImage: 'stakater/pipeline-tools:v1.16.9') {
 
                         stage("checkout") {
                             checkout scm
