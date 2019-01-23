@@ -2,9 +2,9 @@
 import jenkins.model.Jenkins
 
 
-def call(body) {
+def call(Map parameters = [:], body) {    
     def credentialsId = 'slack_token'
-
+    def isMergeRequestBuild = parameters.get('isMergeRequestBuild') ?: false
     def ignoreJobs = ~/wip/
 
     try {
@@ -14,7 +14,7 @@ def call(body) {
         throw e
 
     } finally {
-        if (currentBuild.currentResult == 'FAILURE' && !(env.JOB_NAME =~ ignoreJobs)) {
+        if (currentBuild.currentResult == 'FAILURE' && !(env.JOB_NAME =~ ignoreJobs) && !isMergeRequestBuild) {
             def token = getSlackToken(credentialsId)
             slackSend channel: '#redlamp',
                     color: 'danger',
@@ -22,6 +22,8 @@ def call(body) {
                     teamDomain: 'digitialdealer',
                     token: "${token}"
 
+        } else if(currentBuild.currentResult == 'FAILURE' && isMergeRequestBuild) {
+            echo "Skipping slack notifications due to merge request build"
         }
     }
 }

@@ -32,7 +32,7 @@ def call(body) {
     def getVersion = isMergeRequestBuild ? { getMRVersion(branchName, currentBuild) } : { getBJVersion(config) }
 
     timestamps {
-        withSlackNotificatons() {
+        withSlackNotificatons(isMergeRequestBuild: isMergeRequestBuild) {
             try {
                 gitlabBuilds(builds: ["Build", "System test"]) {
                     podTemplate(

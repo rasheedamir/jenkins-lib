@@ -19,8 +19,8 @@ def call(body) {
     def scmVars
 
     timestamps {
-        withSlackNotificatons() {
-            dockerNode(dockerImage: 'stakater/frontend-tools:0.1.0-8.12.0') {
+        withSlackNotificatons(isMergeRequestBuild: mergeRequestBuild) {
+            dockerNode(dockerImage: 'stakater/builder-node-8:v0.0.1') {
                 container(name: 'docker') {
                     try {
                         stage("Checkout") {
@@ -103,8 +103,33 @@ def call(body) {
                                 s3Upload(file: 'lib/', bucket: "${params.NEW_BUCKET}", path: "${name}/${buildVersion}/")
                             }
                         }
+                        
+                        stage("Run cypress") {
+                            git (
+                                url: "https://gitlab.com/digitaldealer/frontend/apps/app.git",
+                                credentialsId: 'dd_ci'
+                            )
+                            withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                                  variable: 'NEXUS_NPM_AUTH']]) {
+                                sh """
+                                    NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn --cwd app/ install
+                                    NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} CYPRESS_queryString=${name}=${buildVersion} yarn --cwd app/ test:cypress-run-external
+                                """
+                            }
+                        }
                     }
                     finally {
+                        stage('Publish results') {
+                            if (fileExists('cypress/screenshots')) {
+                                zip zipFile: 'output_screenshots.zip', dir: 'cypress/screenshots/', archive: true
+                                archiveArtifacts artifacts: 'cypress/screenshots/**/*', allowEmptyArchive: true
+                            }
+                            if (fileExists('cypress/videos')) {
+                                zip zipFile: 'output_videos.zip', dir: 'cypress/videos/', archive: true
+                                archiveArtifacts artifacts: 'cypress/videos/*', allowEmptyArchive: true
+                            }
+                        }
+
                         if (mergeRequestBuild) {
                             deleteArtifactFromS3("${ROLE_NAME}", "${ROLE_ACCOUNT_ID}", "${params.NEW_BUCKET}", "${name}/${buildVersion}/")
                         }
