@@ -9,6 +9,11 @@ def call(body) {
 
     def sonarScanQueryInterval = config.sonarScanQueryInterval ?: 5000
     def sonarScanQueryMaxAttempts = config.sonarScanQueryMaxAttempts ?: 240
+    def sourcesPath = config.sourcesPath ?: "src/main/java"
+    def testsPath = config.testsPath ?: "src/test/java"
+    def binariesPath = config.binariesPath ?: "target/classes"
+    def junitReportsPath = config.junitReportsPath ?: "target/surefire-reports"
+    def coverageReportsPath = config.coverageReportsPath ?: "target/jacoco.exec"
 
     def kubeConfig = params.KUBE_CONFIG
     def dockerRepo = params.DOCKER_URL
@@ -111,11 +116,11 @@ def call(body) {
                                                 -Dsonar.login=\${SONARQUBE_TOKEN} \
                                                 -Dsonar.projectKey=${project} \
                                                 -Dsonar.projectVersion=${buildVersion} \
-                                                -Dsonar.sources="src/main/java" \
-                                                -Dsonar.tests="src/test/java" \
-                                                -Dsonar.java.binaries="target/classes" \
-                                                -Dsonar.junit.reportPaths="target/surefire-reports" \
-                                                -Dsonar.jacoco.reportPaths="target/jacoco.exec" \
+                                                -Dsonar.sources="${sourcesPath}" \
+                                                -Dsonar.tests="${testsPath}" \
+                                                -Dsonar.java.binaries="${binariesPath}" \
+                                                -Dsonar.junit.reportPaths="${junitReportsPath}" \
+                                                -Dsonar.jacoco.reportPaths="${coverageReportsPath}" \
                                                 -Dsonar.buildbreaker.alternativeServerUrl=${sonarQubeHost} \
                                                 -Dsonar.buildbreaker.queryInterval=${sonarScanQueryInterval} \
                                                 -Dsonar.buildbreaker.queryMaxAttempts=${sonarScanQueryMaxAttempts}
