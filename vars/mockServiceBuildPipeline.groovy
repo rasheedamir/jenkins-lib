@@ -99,6 +99,9 @@ def call(Map parameters = [:], body) {
                                     -Dclassifier=kubernetes \
                                     -Dfile=deployment.yaml
                                 """
+
+                                        // TODO: Migrating Tools Cluster
+                                        deployToAltRepo("nexus.lab.k8syard.com")
                                         stash name: "manifest", includes: "deployment.yaml"
                                     }
                                 }
@@ -115,5 +118,25 @@ def call(Map parameters = [:], body) {
                         }
                     }
         }
+    }
+}
+
+void deployToAltRepo(altMavenRepo) {
+    try {
+        sh """
+            mvn deploy:deploy-file \
+                -Durl=https://${altMavenRepo}/repository/maven-releases \
+                -DrepositoryId=nexus \
+                -DgroupId=com.scania.dd \
+                -DartifactId=${serviceName} \
+                -Dversion=${buildVersion} \
+                -Dpackaging=yml \
+                -Dclassifier=kubernetes \
+                -Dfile=deployment.yaml
+        """
+    }
+    catch(Exception ex) {
+        println "WARNING: Deployment to alternate Nexus failed"
+        println "Pipeline Will continue"
     }
 }

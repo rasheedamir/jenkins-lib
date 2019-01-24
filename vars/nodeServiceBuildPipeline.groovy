@@ -149,6 +149,8 @@ def call(configMap) {
                                         -Dclassifier=kubernetes \
                                         -Dfile=deployment.yaml
                                 """
+                                        // TODO: Migrating Tools Cluster
+                                        deployToAltRepo("nexus.lab.k8syard.com")
                                     }
                                 }
                             }
@@ -172,6 +174,8 @@ def call(configMap) {
             } finally {
                 if (isMergeRequestBuild) {
                     deleteArtifactFromNexus(project, buildVersion, mavenRepo)
+                    // TODO: Migrating Tools Cluster
+                    deleteArtifactFromAlternateNexus(project, buildVersion, "nexus.lab.k8syard.com")
                 }
             }
         }
@@ -185,4 +189,35 @@ String getBJVersion(version_base) {
             returnStdout: true
     ) as Integer
     return "${version_base[0]}.${version_base[1]}.${version_last + 1}"
+}
+
+// TODO: Migrating Tools Cluster
+void deployToAltRepo(altMavenRepo) {
+    try {
+        sh """
+            mvn deploy:deploy-file \
+                -Durl=https://${altMavenRepo}/repository/maven-releases \
+                -DrepositoryId=nexus \
+                -DgroupId=com.scania.dd \
+                -DartifactId=${serviceName} \
+                -Dversion=${buildVersion} \
+                -Dpackaging=yml \
+                -Dclassifier=kubernetes \
+                -Dfile=deployment.yaml
+        """
+    }
+    catch(Exception ex) {
+        println "WARNING: Deployment to alternate Nexus failed"
+        println "Pipeline Will continue"
+    }
+}
+
+// TODO: Migrating Tools Cluster
+void deleteArtifactFromAlternateNexus(String artifact, String version, String nexusHost) {
+    try {
+        deleteArtifactFromNexus(project, buildVersion, nexusHost)
+    }
+    catch(Exception ex) {
+        println "WARNING: Failed to delete artifact from alternate Nexus"
+    }
 }

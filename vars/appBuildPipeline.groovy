@@ -95,10 +95,14 @@ def call(body) {
                                         }
 
                                         sh "mvn deploy"
+                                        //TODO: Migrating Tools Cluster
+                                        deployToAltRepo()
                                     }
 
                                     stage('push docker image') {
                                         sh "mvn fabric8:push -Ddocker.push.registry=${dockerRepo}"
+                                        // TODO: Migrating Tools Cluster
+                                        pushImageToAltRepo("docker.lab.k8syard.com")
                                     }
 
                                 }
@@ -124,6 +128,8 @@ def call(body) {
             finally {
                 if (isMergeRequestBuild) {
                     deleteArtifactFromNexus(project, buildVersion, nexusHost)
+                    // TODO: Migrating Tools Cluster
+                    deleteArtifactFromAlternateNexus(project, buildVersion, "nexus.lab.k8syard.com")
                 }
             }
         }
@@ -143,4 +149,48 @@ String getBJVersion(config) {
 static String getMRVersion(branchName, currentBuild) {
     def buildNumber = currentBuild.number
     return "${branchName}-${buildNumber}"
+}
+
+// TODO: Migrating Tools Cluster
+void deployToAltRepo() {
+    try {
+        sh """
+            echo "Deploy to Alternate Nexus"
+            mvn deploy -Pnexus-v2 -Dmaven.test.skip=true -Dmaven.install.skip=true
+        """
+    }
+    catch(Exception ex) {
+        println "WARNING: Deployment to alternate Nexus failed"
+        println "Pipeline Will continue"
+    }
+}
+
+// TODO: Migrating Tools Cluster
+void pushImageToAltRepo(altRepository) {
+    try {
+        sh """
+            echo "Push to alternate Docker Repository"
+            repositoryStatus=\$(curl -L -s -o /dev/null -w "%{http_code}" ${altRepository})
+            if [ \${repositoryStatus} -eq "503" ]; then
+                echo "Cannot Reach docker repository: Stauts 503"
+                exit 1;
+            fi
+            docker tag dd/${project}:${buildVersion} ${altRepository}/dd/${project}:${buildVersion}
+            docker push ${altRepository}/dd/${project}:${buildVersion}
+        """
+    }
+    catch(Exception ex) {
+        println "WARNING: Pushing docker image to alternate repository failed"
+        println "Pipeline will continue."
+    }
+}
+
+// TODO: Migrating Tools Cluster
+void deleteArtifactFromAlternateNexus(String artifact, String version, String nexusHost) {
+    try {
+        deleteArtifactFromNexus(project, buildVersion, nexusHost)
+    }
+    catch(Exception ex) {
+        println "WARNING: Failed to delete artifact from alternate Nexus"
+    }
 }
