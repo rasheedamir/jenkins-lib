@@ -102,7 +102,7 @@ def call(body) {
                                     stage('push docker image') {
                                         sh "mvn fabric8:push -Ddocker.push.registry=${dockerRepo}"
                                         // TODO: Migrating Tools Cluster
-                                        pushImageToAltRepo("docker.lab.k8syard.com")
+                                        pushImageToAltRepo(project, buildVersion, "docker.lab.k8syard.com")
                                     }
 
                                 }
@@ -166,7 +166,7 @@ void deployToAltRepo() {
 }
 
 // TODO: Migrating Tools Cluster
-void pushImageToAltRepo(altRepository) {
+void pushImageToAltRepo(project, buildVersion, altRepository) {
     try {
         sh """
             echo "Push to alternate Docker Repository"
