@@ -5,6 +5,7 @@ def call(configMap) {
     def kubeConfig = params.KUBE_CONFIG
     def dockerUrl = params.DOCKER_URL
     def mavenRepo = params.MAVEN_REPO
+    def secondaryMavenRepo = params.SECONDARY_MAVEN_REPO
 
     def buildVersion
     def scmVars
@@ -53,14 +54,14 @@ def call(configMap) {
                                             error("Property 'name' in package.json cannot be found")
                                         }
 
-                                        withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                        withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
                                                           variable: 'NEXUS_NPM_AUTH']]) {
 
                                             sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn version --no-git-tag-version --new-version ${buildVersion}"
                                             sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn install"
                                         }
 
-                                        withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                        withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
                                                           variable: 'NEXUS_NPM_AUTH']]) {
                                             try {
                                                 sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} JEST_JUNIT_OUTPUT=\"./unit-test-report.xml\" yarn test"
@@ -69,7 +70,7 @@ def call(configMap) {
                                             }
                                         }
 
-                                        withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                        withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
                                                           variable: 'NEXUS_NPM_AUTH']]) {
                                             sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} yarn build"
                                         }
@@ -83,13 +84,13 @@ def call(configMap) {
                                                 git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
                                                 git tag -am "By ${currentBuild.projectName}" v${buildVersion}
                                                 git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${scmVars.GIT_URL.substring(8)} v${
-                                                                    buildVersion
+                                                    buildVersion
                                                 }
                                             """
                                             }
                                         }
 
-                                        withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                        withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
                                                           variable: 'NEXUS_NPM_AUTH']]) {
                                             sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} npm publish"
                                         }
@@ -110,7 +111,7 @@ def call(configMap) {
 
                                     container('clients') {
                                         newImageName = "${dockerUrl}/${project}:${buildVersion}"
-                                        withCredentials([[$class  : 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
+                                        withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
                                                           variable: 'NEXUS_NPM_AUTH']]) {
                                             sh "docker build --build-arg NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} --network=host -t ${newImageName} ."
                                         }
@@ -150,7 +151,7 @@ def call(configMap) {
                                         -Dfile=deployment.yaml
                                 """
                                         // TODO: Migrating Tools Cluster
-                                        deployToAltRepo("nexus.lab.k8syard.com")
+                                        deployToAltRepo(secondaryMavenRepo)
                                     }
                                 }
                             }
@@ -162,7 +163,7 @@ def call(configMap) {
 
                         if (deployToDevAndProd) {
                             stage("Deploy to dev") {
-                            build job: "${project}-dev-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
+                                build job: "${project}-dev-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
                             }
 
                             stage("Deploy to prod") {
@@ -175,7 +176,7 @@ def call(configMap) {
                 if (isMergeRequestBuild) {
                     deleteArtifactFromNexus(project, buildVersion, mavenRepo)
                     // TODO: Migrating Tools Cluster
-                    deleteArtifactFromAlternateNexus(project, buildVersion, "nexus.lab.k8syard.com")
+                    deleteArtifactFromAlternateNexus(project, buildVersion, secondaryMavenRepo)
                 }
             }
         }
@@ -206,7 +207,7 @@ void deployToAltRepo(altMavenRepo) {
                 -Dfile=deployment.yaml
         """
     }
-    catch(Exception ex) {
+    catch (Exception ex) {
         println "WARNING: Deployment to alternate Nexus failed"
         println "Pipeline Will continue"
     }
@@ -217,7 +218,7 @@ void deleteArtifactFromAlternateNexus(String artifact, String version, String ne
     try {
         deleteArtifactFromNexus(project, buildVersion, nexusHost)
     }
-    catch(Exception ex) {
+    catch (Exception ex) {
         println "WARNING: Failed to delete artifact from alternate Nexus"
     }
 }

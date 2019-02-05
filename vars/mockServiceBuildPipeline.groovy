@@ -20,6 +20,7 @@ def call(Map parameters = [:], body) {
     def nameSpace = params.NAMESPACE
     def mavenRepo = params.MAVEN_REPO
     def dockerRepo = params.DOCKER_URL
+    def secondaryMavenRepo = params.SECONDARY_MAVEN_REPO
     def serviceName = parameters.get('serviceName')
     assert serviceName != null: "Build fails because serviceName missing"
 
@@ -101,7 +102,7 @@ def call(Map parameters = [:], body) {
                                 """
 
                                         // TODO: Migrating Tools Cluster
-                                        deployToAltRepo("nexus.lab.k8syard.com")
+                                        deployToAltRepo(secondaryMavenRepo)
                                         stash name: "manifest", includes: "deployment.yaml"
                                     }
                                 }
@@ -135,7 +136,7 @@ void deployToAltRepo(altMavenRepo) {
                 -Dfile=deployment.yaml
         """
     }
-    catch(Exception ex) {
+    catch (Exception ex) {
         println "WARNING: Deployment to alternate Nexus failed"
         println "Pipeline Will continue"
     }

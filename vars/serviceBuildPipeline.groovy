@@ -18,6 +18,8 @@ def call(body) {
     def kubeConfig = params.KUBE_CONFIG
     def dockerRepo = params.DOCKER_URL
     def nexusHost = params.MAVEN_REPO
+    def secondaryDockerRepo = params.SECONDARY_DOCKER_URL
+    def secondaryNexusHost = params.SECONDARY_MAVEN_REPO
     def sonarQubeHost = params.SONARQUBE_HOST
     def isMergeRequestBuild = params.IS_MERGE_REQUEST_BUILD ?: false
     echo "isMergeRequestBuild: ${isMergeRequestBuild}"
@@ -30,7 +32,7 @@ def call(body) {
 
     def deployToDevAndProd = !(isMergeRequestBuild || onlyMock)
     echo "deployToDevAndProd: ${deployToDevAndProd}"
-    
+
     def project
     def buildVersion
     def scmVars
@@ -44,8 +46,8 @@ def call(body) {
                             name: 'sa-secret',
                             serviceAccount: 'digitaldealer-serviceaccount',
                             envVars: [
-                                envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443'),
-                                secretEnvVar(key: 'SONARQUBE_TOKEN', secretName: 'jenkins-sonarqube', secretKey: 'token')
+                                    envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443'),
+                                    secretEnvVar(key: 'SONARQUBE_TOKEN', secretName: 'jenkins-sonarqube', secretKey: 'token')
                             ],
                             volumes: [
                                     secretVolume(secretName: 'jenkins-maven-settings', mountPath: '/home/jenkins/.m2'),
@@ -134,7 +136,7 @@ def call(body) {
                                     stage('push docker image') {
                                         sh "mvn fabric8:push -Ddocker.push.registry=${dockerRepo}"
                                         // TODO: Migrating Tools Cluster
-                                        pushImageToAltRepo(project, buildVersion, "docker.lab.k8syard.com")
+                                        pushImageToAltRepo(project, buildVersion, secondaryDockerRepo)
                                     }
 
                                 }
@@ -161,7 +163,7 @@ def call(body) {
                 if (isMergeRequestBuild) {
                     deleteArtifactFromNexus(project, buildVersion, nexusHost)
                     // TODO: Migrating Tools Cluster
-                    deleteArtifactFromAlternateNexus(project, buildVersion, "nexus.lab.k8syard.com")
+                    deleteArtifactFromAlternateNexus(project, buildVersion, secondaryNexusHost)
                 }
             }
         }
@@ -190,7 +192,7 @@ void deployToAltRepo() {
             mvn deploy -Pnexus-v2 -Dmaven.test.skip=true -Dmaven.install.skip=true
         """
     }
-    catch(Exception ex) {
+    catch (Exception ex) {
         println "WARNING: Deployment to alternate Nexus failed"
         println "Pipeline Will continue"
     }
@@ -210,7 +212,7 @@ void pushImageToAltRepo(project, buildVersion, altRepository) {
             docker push ${altRepository}/dd/${project}:${buildVersion}
         """
     }
-    catch(Exception ex) {
+    catch (Exception ex) {
         println "WARNING: Pushing docker image to alternate repository failed"
         println "Pipeline will continue."
     }
@@ -221,7 +223,7 @@ void deleteArtifactFromAlternateNexus(String artifact, String version, String ne
     try {
         deleteArtifactFromNexus(project, buildVersion, nexusHost)
     }
-    catch(Exception ex) {
+    catch (Exception ex) {
         println "WARNING: Failed to delete artifact from alternate Nexus"
     }
 }
