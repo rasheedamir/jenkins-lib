@@ -52,13 +52,13 @@ def call(Map parameters = [:], body) {
                                     sh "docker build --network=host -t ${newImageName} ."
                                     withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                                         sh """
-                                    git config user.name "${scmVars.GIT_AUTHOR_NAME}"
-                                    git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
-                                    git tag -am "By ${currentBuild.projectName}" v${buildVersion}
-                                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${scmVars.GIT_URL.substring(8)} v${
-                                            buildVersion
-                                        }
-                                """
+                                            git config user.name "${scmVars.GIT_AUTHOR_NAME}"
+                                            git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
+                                            git tag -am "By ${currentBuild.projectName}" v${buildVersion}
+                                            git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${scmVars.GIT_URL.substring(8)} v${
+                                                    buildVersion
+                                                }
+                                        """
                                     }
                                     sh "docker push ${newImageName}"
                                 }
@@ -90,16 +90,16 @@ def call(Map parameters = [:], body) {
                                     stage("Upload to nexus") {
                                         unstash "manifest"
                                         sh """
-                                mvn deploy:deploy-file \
-                                    -Durl=https://${mavenRepo}/repository/maven-releases \
-                                    -DrepositoryId=nexus \
-                                    -DgroupId=com.scania.dd \
-                                    -DartifactId=${serviceName} \
-                                    -Dversion=${buildVersion} \
-                                    -Dpackaging=yml \
-                                    -Dclassifier=kubernetes \
-                                    -Dfile=deployment.yaml
-                                """
+                                            mvn deploy:deploy-file \
+                                                -Durl=https://${mavenRepo}/repository/maven-releases \
+                                                -DrepositoryId=nexus \
+                                                -DgroupId=com.scania.dd \
+                                                -DartifactId=${serviceName} \
+                                                -Dversion=${buildVersion} \
+                                                -Dpackaging=yml \
+                                                -Dclassifier=kubernetes \
+                                                -Dfile=deployment.yaml
+                                        """
 
                                         // TODO: Migrating Tools Cluster
                                         deployToAltRepo(secondaryMavenRepo)

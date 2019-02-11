@@ -13,14 +13,14 @@ def call(body) {
 
     assert !(mergeRequestBuild && env.gitlabSourceBranch == null)
     def branchName = mergeRequestBuild ? env.gitlabSourceBranch : env.gitlabBranch ?: 'master'
-
+    def secondaryNexusHost = params.SECONDARY_MAVEN_REPO
     def buildVersion
-    def name
     def scmVars
+    def name
 
     timestamps {
         withSlackNotificatons(isMergeRequestBuild: mergeRequestBuild) {
-            dockerNode(dockerImage: 'stakater/builder-node-8:v0.0.1') {
+            dockerNode(dockerImage: 'stakater/builder-node-8:v0.0.2') {
                 container(name: 'docker') {
                     try {
                         stage("Checkout") {
@@ -73,13 +73,13 @@ def call(body) {
                             if (!mergeRequestBuild) {
                                 withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                                     sh """
-                            git config user.name "${scmVars.GIT_AUTHOR_NAME}" # TODO move to git config
-                            git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
-                            git tag -am "By ${currentBuild.projectName}" v${buildVersion}
-                            git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${scmVars.GIT_URL.substring(8)} v${
-                                        buildVersion
-                                    }
-                        """
+                                        git config user.name "${scmVars.GIT_AUTHOR_NAME}" # TODO move to git config
+                                        git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
+                                        git tag -am "By ${currentBuild.projectName}" v${buildVersion}
+                                        git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${scmVars.GIT_URL.substring(8)} v${
+                                                    buildVersion
+                                                }
+                                    """
                                 }
                             } else {
                                 echo "Not tagging this build as it is a merge request build"
@@ -90,7 +90,13 @@ def call(body) {
                             if (!mergeRequestBuild) {
                                 withCredentials([[$class: 'StringBinding', credentialsId: 'NEXUS_NPM_AUTH',
                                                   variable: 'NEXUS_NPM_AUTH']]) {
-                                    sh "NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH} npm publish"
+                                    sh """
+                                        export NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH}; 
+                                        npm publish
+                                        export NPM_INTERNAL=https://${secondaryNexusHost}/repository/npm-internal
+                                        cat package.json | jq '.publishConfig.registry=env.NPM_INTERNAL' | tee package.json > /dev/null
+                                        npm publish
+                                    """
                                 }
                             } else {
                                 echo "Not publishing this artifact to nexus as it is a merge request build"
@@ -103,7 +109,7 @@ def call(body) {
                                 s3Upload(file: 'lib/', bucket: "${params.NEW_BUCKET}", path: "${name}/${buildVersion}/")
                             }
                         }
-                        
+
                         stage("Run cypress") {
                             git (
                                 url: "https://gitlab.com/digitaldealer/frontend/apps/app.git",

@@ -52,12 +52,12 @@ def call(body) {
                                     def mvnRepository = "/home/jenkins/.mvnrepository"
                                     // Run chown only if the directory is not already owned by the jenkins user
                                     sh """
-                                    MVN_DIR_OWNER=\$(ls -ld ${mvnRepository} | awk '{print \$3}')
-                                    if [ \${MVN_DIR_OWNER} != '10000' ];
-                                    then
-                                        chown 10000 -R /home/jenkins/.mvnrepository
-                                    fi
-                                """
+                                        MVN_DIR_OWNER=\$(ls -ld ${mvnRepository} | awk '{print \$3}')
+                                        if [ \${MVN_DIR_OWNER} != '10000' ];
+                                        then
+                                            chown 10000 -R /home/jenkins/.mvnrepository
+                                        fi
+                                    """
                                 }
                             }
                         }
@@ -86,13 +86,13 @@ def call(body) {
                                             withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                                                 def gitUrl = scmVars.GIT_URL.substring(8)
                                                 sh """
-                                                git config user.name "${scmVars.GIT_AUTHOR_NAME}"
-                                                git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
-                                                git tag -am "By ${currentBuild.projectName}" v${buildVersion}
-                                                git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${gitUrl} v${
-                                                    buildVersion
-                                                }
-                                            """
+                                                    git config user.name "${scmVars.GIT_AUTHOR_NAME}"
+                                                    git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
+                                                    git tag -am "By ${currentBuild.projectName}" v${buildVersion}
+                                                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${gitUrl} v${
+                                                        buildVersion
+                                                    }
+                                                """
                                             }
                                         }
 

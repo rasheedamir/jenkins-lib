@@ -1,17 +1,15 @@
 def call(configMap) {
-
     def credentialId = 'dd_ci'
-
-    def kubeConfig = params.KUBE_CONFIG
-    def dockerUrl = params.DOCKER_URL
-    def mavenRepo = params.MAVEN_REPO
-    def secondaryMavenRepo = params.SECONDARY_MAVEN_REPO
 
     def buildVersion
     def scmVars
     def newImageName
     def project
 
+    def kubeConfig = params.KUBE_CONFIG
+    def dockerUrl = params.DOCKER_URL
+    def mavenRepo = params.MAVEN_REPO
+    def secondaryMavenRepo = params.SECONDARY_MAVEN_REPO
     def isMergeRequestBuild = params.IS_MERGE_REQUEST_BUILD ?: false
     echo "isMergeRequestBuild: ${isMergeRequestBuild}"
 
@@ -24,7 +22,6 @@ def call(configMap) {
     timestamps {
         withSlackNotificatons() {
             try {
-
                 gitlabBuilds(builds: ["Build", "System test"]) {
                     podTemplate(volumes: [secretVolume(secretName: "${kubeConfig}", mountPath: '/home/jenkins/.kube')]) {
 
@@ -40,13 +37,11 @@ def call(configMap) {
                                         js_package = readJSON file: 'package.json'
                                         project = js_package.name
                                         def version_base = js_package.version.tokenize(".")
-
                                         buildVersion = isMergeRequestBuild ? getBJVersion(version_base) + "${mr_version_postfix}" : getBJVersion(version_base)
                                         currentBuild.displayName = "${buildVersion}"
                                     }
 
                                     stage("Build Package") {
-
                                         project = js_package.name
                                         boolean containsData = project?.trim()
 
@@ -140,16 +135,16 @@ def call(configMap) {
                                     container(name: 'maven') {
                                         unstash "manifest"
                                         sh """
-                                    mvn deploy:deploy-file \
-                                        -Durl=https://${mavenRepo}/repository/maven-releases \
-                                        -DrepositoryId=nexus \
-                                        -DgroupId=com.scania.dd \
-                                        -DartifactId=${project} \
-                                        -Dversion=${buildVersion} \
-                                        -Dpackaging=yml \
-                                        -Dclassifier=kubernetes \
-                                        -Dfile=deployment.yaml
-                                """
+                                            mvn deploy:deploy-file \
+                                                -Durl=https://${mavenRepo}/repository/maven-releases \
+                                                -DrepositoryId=nexus \
+                                                -DgroupId=com.scania.dd \
+                                                -DartifactId=${project} \
+                                                -Dversion=${buildVersion} \
+                                                -Dpackaging=yml \
+                                                -Dclassifier=kubernetes \
+                                                -Dfile=deployment.yaml
+                                        """
                                         // TODO: Migrating Tools Cluster
                                         deployToAltRepo(secondaryMavenRepo)
                                     }
