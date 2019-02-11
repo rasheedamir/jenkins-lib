@@ -93,10 +93,19 @@ def call(body) {
                                     sh """
                                         export NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH}; 
                                         npm publish
-                                        export NPM_INTERNAL=https://${secondaryNexusHost}/repository/npm-internal
-                                        cat package.json | jq '.publishConfig.registry=env.NPM_INTERNAL' | tee package.json > /dev/null
-                                        npm publish
                                     """
+                                    try {
+                                        sh """
+                                            export NPM_INTERNAL = https://${secondaryNexusHost}/repository/npm-internal
+                                            cat package.json | jq '.publishConfig.registry=env.NPM_INTERNAL' | tee package.
+                                            json > /dev/ null
+                                            npm publish
+                                         """
+                                    }
+                                    catch (Exception ex) {
+                                        println "WARNING: Deployment to alternate Nexus failed"
+                                        println "Pipeline Will continue"
+                                    }
                                 }
                             } else {
                                 echo "Not publishing this artifact to nexus as it is a merge request build"
