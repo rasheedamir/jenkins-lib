@@ -96,11 +96,11 @@ def call(body) {
                                     """
                                     try {
                                         sh """
-                                            export NPM_INTERNAL = https://${secondaryNexusHost}/repository/npm-internal
+                                            NPM_INTERNAL=https://${secondaryNexusHost}/repository/npm-internal
                                             cat package.json | jq '.publishConfig.registry=env.NPM_INTERNAL' | tee package.
                                             json > /dev/ null
                                             npm publish
-                                         """
+                                        """
                                     }
                                     catch (Exception ex) {
                                         println "WARNING: Deployment to alternate Nexus failed"
