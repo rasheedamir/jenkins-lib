@@ -104,7 +104,7 @@ def prepareAWS(String inputFile, String scriptDir) {
     //println "DEBUG: PREPARE AWS"
     sh """
         mkdir ${HOME}.aws
-        source vars.sh
+        source ./vars.sh
         ${scriptDir}/prepareAWSConfig.sh
     """
 }
@@ -114,7 +114,7 @@ def updateCluster(String inputFile, String scriptDir, Boolean isDRYRUN) {
     if (isDRYRUN) {
         //println "DEBUG: DRYRUN"
         sh """
-            source vars.sh
+            source ./vars.sh
             ${scriptDir}/prepareTemplate.sh
             ${scriptDir}/exportKubecfg.sh
             ${scriptDir}/replaceCluster.sh
@@ -122,7 +122,7 @@ def updateCluster(String inputFile, String scriptDir, Boolean isDRYRUN) {
     } else {
         //println "DEBUG: NO DRYRUN"
         sh """
-            source vars.sh
+            source ./vars.sh
             ${scriptDir}/prepareTemplate.sh
             ${scriptDir}/exportKubecfg.sh
             ${scriptDir}/replaceCluster.sh yes && ${scriptDir}/validateCluster.sh
@@ -135,14 +135,14 @@ def createCluster(String inputFile, String scriptDir, Boolean isDRYRUN) {
     if (isDRYRUN) {
         //println "DEBUG: DRYRUN"
         sh """
-            source vars.sh
+            source ./vars.sh
             ${scriptDir}/prepareTemplate.sh
             ${scriptDir}/createCluster.sh
         """
     } else {
         //println "DEBUG: NO DRYRUN"
         sh """
-            source vars.sh
+            source ./vars.sh
             ${scriptDir}/prepareTemplate.sh
             ${scriptDir}/createCluster.sh yes && ${scriptDir}/exportKubecfg.sh && ${scriptDir}/validateCluster.sh
         """
@@ -154,7 +154,7 @@ def deleteCluster(String inputFile, String scriptDir, Boolean isDRYRUN) {
     if (isDRYRUN) {
         //println "DEBUG DRYRUN"
         sh """
-            source vars.sh
+            source ./vars.sh
             ${scriptDir}/prepareTemplate.sh
             ${scriptDir}/exportKubecfg.sh
             ${scriptDir}/deleteCluster.sh
@@ -162,7 +162,7 @@ def deleteCluster(String inputFile, String scriptDir, Boolean isDRYRUN) {
     } else {
         //println "DEBUG: NO DRYRUN"
         sh """
-            source vars.sh
+            source ./vars.sh
             ${scriptDir}/prepareTemplate.sh
             ${scriptDir}/exportKubecfg.sh
             ${scriptDir}/deleteCluster.sh
@@ -177,7 +177,7 @@ def deleteCluster(String inputFile, String scriptDir, Boolean isDRYRUN) {
         }
 
         sh """
-            source vars.sh
+            source ./vars.sh
             ${scriptDir}/prepareTemplate.sh
             ${scriptDir}/exportKubecfg.sh
             ${scriptDir}/deleteCluster.sh yes
@@ -187,7 +187,7 @@ def deleteCluster(String inputFile, String scriptDir, Boolean isDRYRUN) {
 
 def validateCluster(String inputFile, String scriptDir) {
         sh """
-            source vars.sh
+            source ./vars.sh
             ${scriptDir}/exportKubecfg.sh
             ${scriptDir}/validateCluster.sh
         """
