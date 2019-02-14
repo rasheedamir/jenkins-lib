@@ -96,8 +96,7 @@ def call(body) {
                                     """
                                     try {
                                         sh """
-                                            cat package.json | jq '.publishConfig.registry=https://${secondaryNexusHost}/repository/npm-internal' | tee package.
-                                            json > /dev/null
+                                            cat package.json | jq '.publishConfig.registry = "https://${secondaryNexusHost}/repository/npm-internal"' >> package.json
                                             npm publish
                                         """
                                     }
