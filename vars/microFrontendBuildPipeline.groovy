@@ -96,7 +96,8 @@ def call(body) {
                                     """
                                     try {
                                         sh """
-                                            cat package.json | jq '.publishConfig.registry = "https://${secondaryNexusHost}/repository/npm-internal"' >> package.json
+                                            cat package.json | jq '.publishConfig.registry = "https://${secondaryNexusHost}/repository/npm-internal"' > package.json
+                                            export NEXUS_NPM_AUTH=${NEXUS_NPM_AUTH}; 
                                             npm publish
                                         """
                                     }
