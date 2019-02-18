@@ -48,7 +48,7 @@ def call(body) {
                             envVars: [
                                     envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443'),
                                     envVar(key: 'PACTBROKER_URL', value: 'https://pact-broker.release.tools.digitaldealer.devtest.aws.scania.com'),
-                                    envVar(key: 'PACTBROKER_AUTH_USERNAME', value: 'pact_dd_admin'),
+                                    envVar(key: 'PACTBROKER_AUTH_USERNAME', value: 'dd_admin'),
                                     secretEnvVar(key: 'PACTBROKER_AUTH_PASSWORD', secretName: 'pact-broker-secret', secretKey: 'basicauth.password'),
                                     secretEnvVar(key: 'SONARQUBE_TOKEN', secretName: 'jenkins-sonarqube', secretKey: 'token')
                             ],
