@@ -47,6 +47,9 @@ def call(body) {
                             serviceAccount: 'digitaldealer-serviceaccount',
                             envVars: [
                                     envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443'),
+                                    envVar(key: 'PACTBROKER_URL', value: 'https://pact-broker.release.tools.digitaldealer.devtest.aws.scania.com'),
+                                    envVar(key: 'PACTBROKER_AUTH_USERNAME', value: 'dd_admin'),
+                                    secretEnvVar(key: 'PACTBROKER_AUTH_PASSWORD', secretName: 'pact-broker-secret', secretKey: 'basicauth.password'),
                                     secretEnvVar(key: 'SONARQUBE_TOKEN', secretName: 'jenkins-sonarqube', secretKey: 'token')
                             ],
                             volumes: [
@@ -148,6 +151,10 @@ def call(body) {
                         }
 
                         if (deployToDevAndProd) {
+                            stage("Publish pacts") {
+                                publishPacts()
+                            }
+
                             stage("Deploy to dev") {
                                 build job: "${project}-dev-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
                             }
@@ -182,6 +189,16 @@ String getBJVersion(config) {
 static String getMRVersion(branchName, currentBuild) {
     def buildNumber = currentBuild.number
     return "${branchName}-${buildNumber}"
+}
+
+void publishPacts() {
+    try {
+        sh "mvn pact:publish"
+    }
+    catch (Exception ex) {
+        println "WARNING: Was not able to find/publish pacts"
+        println "Pipeline will continue"
+    }
 }
 
 // TODO: Migrating Tools Cluster
