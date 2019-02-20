@@ -142,6 +142,12 @@ def call(body) {
                                         pushImageToAltRepo(project, buildVersion, secondaryDockerRepo)
                                     }
 
+                                    stage("Publish pacts") {
+                                        if (!isMergeRequestBuild) {
+                                            publishPacts()
+                                        }
+                                    }
+
                                 }
                             }
                         }
@@ -151,9 +157,6 @@ def call(body) {
                         }
 
                         if (deployToDevAndProd) {
-                            stage("Publish pacts") {
-                                publishPacts()
-                            }
 
                             stage("Deploy to dev") {
                                 build job: "${project}-dev-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
