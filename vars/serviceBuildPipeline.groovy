@@ -41,130 +41,105 @@ def call(body) {
     timestamps {
         withSlackNotificatons(isMergeRequestBuild: isMergeRequestBuild) {
             try {
-                gitlabBuilds(builds: ["Build", "System test"]) {
-                    podTemplate(
-                            name: 'sa-secret',
-                            serviceAccount: 'digitaldealer-serviceaccount',
-                            envVars: [
-                                    envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443'),
-                                    envVar(key: 'PACTBROKER_URL', value: 'https://pact-broker.release.tools.digitaldealer.devtest.aws.scania.com'),
-                                    envVar(key: 'PACTBROKER_AUTH_USERNAME', value: 'dd_admin'),
-                                    secretEnvVar(key: 'PACTBROKER_AUTH_PASSWORD', secretName: 'pact-broker-secret', secretKey: 'basicauth.password'),
-                                    secretEnvVar(key: 'SONARQUBE_TOKEN', secretName: 'jenkins-sonarqube', secretKey: 'token')
-                            ],
-                            volumes: [
-                                    secretVolume(secretName: 'jenkins-maven-settings', mountPath: '/home/jenkins/.m2'),
-                                    persistentVolumeClaim(claimName: 'jenkins-m2-cache', mountPath: '/home/jenkins/.mvnrepository'),
-                                    secretVolume(secretName: "${kubeConfig}", mountPath: '/home/jenkins/.kube'),
-                                    secretVolume(secretName: 'digitaldealer-service-secret', mountPath: '/etc/secrets/service-secret')
-                            ]) {
+                podTemplate(
+                        name: 'sa-secret',
+                        serviceAccount: 'digitaldealer-serviceaccount',
+                        envVars: [
+                                envVar(key: 'KUBERNETES_MASTER', value: 'https://kubernetes.default:443'),
+                                envVar(key: 'PACTBROKER_URL', value: 'https://pact-broker.release.tools.digitaldealer.devtest.aws.scania.com'),
+                                envVar(key: 'PACTBROKER_AUTH_USERNAME', value: 'dd_admin'),
+                                secretEnvVar(key: 'PACTBROKER_AUTH_PASSWORD', secretName: 'pact-broker-secret', secretKey: 'basicauth.password'),
+                                secretEnvVar(key: 'SONARQUBE_TOKEN', secretName: 'jenkins-sonarqube', secretKey: 'token')
+                        ],
+                        volumes: [
+                                secretVolume(secretName: 'jenkins-maven-settings', mountPath: '/home/jenkins/.m2'),
+                                persistentVolumeClaim(claimName: 'jenkins-m2-cache', mountPath: '/home/jenkins/.mvnrepository'),
+                                secretVolume(secretName: "${kubeConfig}", mountPath: '/home/jenkins/.kube'),
+                                secretVolume(secretName: 'digitaldealer-service-secret', mountPath: '/etc/secrets/service-secret')
+                        ]) {
 
-                        mavenNode(maven: 'stakater/pipeline-tools:1.11.0') {
+                    mavenNode(maven: 'stakater/pipeline-tools:1.11.0') {
+                        container(name: 'maven') {
+                            // Ensure "jenkins" user is the owner of mounted Maven repository
+                            // As the default owner in the volume would be "root" unless changed once
+                            stage("Change Ownership") {
+                                def mvnRepository = "/home/jenkins/.mvnrepository"
+                                // Run chown only if the directory is not already owned by the jenkins user
+                                sh """
+                                    MVN_DIR_OWNER=\$(ls -ld ${mvnRepository} | awk '{print \$3}')
+                                    if [ \${MVN_DIR_OWNER} != '10000' ];
+                                    then
+                                        chown 10000 -R /home/jenkins/.mvnrepository
+                                    fi
+                                """
+                            }
+                        }
+                    }
+
+                    gitlabCommitStatus(name: "Build") {
+                        mavenNode(
+                                mavenImage: 'stakater/builder-maven:3.5.4-jdk1.8-v2.0.1-v0.0.5',
+                                javaOptions: '-Duser.home=/home/jenkins -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Dsun.zip.disableMemoryMapping=true -XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90',
+                                mavenOpts: '-Duser.home=/home/jenkins -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn') {
+
                             container(name: 'maven') {
-                                // Ensure "jenkins" user is the owner of mounted Maven repository
-                                // As the default owner in the volume would be "root" unless changed once
-                                stage("Change Ownership") {
-                                    def mvnRepository = "/home/jenkins/.mvnrepository"
-                                    // Run chown only if the directory is not already owned by the jenkins user
-                                    sh """
-                                        MVN_DIR_OWNER=\$(ls -ld ${mvnRepository} | awk '{print \$3}')
-                                        if [ \${MVN_DIR_OWNER} != '10000' ];
-                                        then
-                                            chown 10000 -R /home/jenkins/.mvnrepository
-                                        fi
-                                    """
+
+                                stage("checkout") {
+                                    scmVars = checkout([$class: 'GitSCM', branches: [[name: branchName]], userRemoteConfigs: scm.getUserRemoteConfigs()])
+                                    def pom = readMavenPom file: 'pom.xml'
+                                    // Explicitly set project name from property
+                                    // NOTE: 'projectName' Should only be set for multi-module projects
+                                    project = config.projectName ?: pom.artifactId
+                                    buildVersion = getVersion()
+                                    currentBuild.displayName = "${buildVersion}"
                                 }
-                            }
-                        }
 
-                        gitlabCommitStatus(name: "Build") {
-                            mavenNode(
-                                    mavenImage: 'stakater/builder-maven:3.5.4-jdk1.8-v2.0.1-v0.0.5',
-                                    javaOptions: '-Duser.home=/home/jenkins -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Dsun.zip.disableMemoryMapping=true -XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90',
-                                    mavenOpts: '-Duser.home=/home/jenkins -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn') {
+                                stage('build') {
+                                    sh "git checkout -b ${env.JOB_NAME}-${buildVersion}"
+                                    sh "mvn org.codehaus.mojo:versions-maven-plugin:2.7:set -U -DnewVersion=${buildVersion}"
 
-                                container(name: 'maven') {
-
-                                    stage("checkout") {
-                                        scmVars = checkout([$class: 'GitSCM', branches: [[name: branchName]], userRemoteConfigs: scm.getUserRemoteConfigs()])
-                                        def pom = readMavenPom file: 'pom.xml'
-                                        // Explicitly set project name from property
-                                        // NOTE: 'projectName' Should only be set for multi-module projects
-                                        project = config.projectName ?: pom.artifactId
-                                        buildVersion = getVersion()
-                                        currentBuild.displayName = "${buildVersion}"
-                                    }
-
-                                    stage('build') {
-                                        sh "git checkout -b ${env.JOB_NAME}-${buildVersion}"
-                                        sh "mvn org.codehaus.mojo:versions-maven-plugin:2.7:set -U -DnewVersion=${buildVersion}"
-
-                                        if (!isMergeRequestBuild) {
-                                            withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                                                def gitUrl = scmVars.GIT_URL.substring(8)
-                                                sh """
-                                                    git config user.name "${scmVars.GIT_AUTHOR_NAME}"
-                                                    git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
-                                                    git tag -am "By ${currentBuild.projectName}" v${buildVersion}
-                                                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${gitUrl} v${
-                                                        buildVersion
-                                                    }
-                                                """
-                                            }
-                                        }
-
-                                        sh "mvn deploy"
-                                        //TODO: Migrating Tools Cluster
-                                        deployToAltRepo()
-                                    }
-
-                                    stage('SonarQube Analysis') {
-                                        sh """
-                                            /bin/sonar-scanner \
-                                                -Dsonar.host.url=${sonarQubeHost} \
-                                                -Dsonar.login=\${SONARQUBE_TOKEN} \
-                                                -Dsonar.projectKey=${project} \
-                                                -Dsonar.projectVersion=${buildVersion} \
-                                                -Dsonar.sources="${sourcesPath}" \
-                                                -Dsonar.tests="${testsPath}" \
-                                                -Dsonar.java.binaries="${binariesPath}" \
-                                                -Dsonar.junit.reportPaths="${junitReportsPath}" \
-                                                -Dsonar.jacoco.reportPaths="${coverageReportsPath}" \
-                                                -Dsonar.buildbreaker.alternativeServerUrl=${sonarQubeHost} \
-                                                -Dsonar.buildbreaker.queryInterval=${sonarScanQueryInterval} \
-                                                -Dsonar.buildbreaker.queryMaxAttempts=${sonarScanQueryMaxAttempts}
-                                        """
-                                    }
-
-                                    stage('push docker image') {
-                                        sh "mvn fabric8:push -Ddocker.push.registry=${dockerRepo}"
-                                        // TODO: Migrating Tools Cluster
-                                        pushImageToAltRepo(project, buildVersion, secondaryDockerRepo)
-                                    }
-
-                                    stage("Publish pacts") {
-                                        if (!isMergeRequestBuild) {
-                                            publishPacts()
+                                    if (!isMergeRequestBuild) {
+                                        withCredentials([usernamePassword(credentialsId: credentialId, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                                            def gitUrl = scmVars.GIT_URL.substring(8)
+                                            sh """
+                                                git config user.name "${scmVars.GIT_AUTHOR_NAME}"
+                                                git config user.email "${scmVars.GIT_AUTHOR_EMAIL}"
+                                                git tag -am "By ${currentBuild.projectName}" v${buildVersion}
+                                                git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${gitUrl} v${
+                                                    buildVersion
+                                                }
+                                            """
                                         }
                                     }
 
+                                    sh "mvn deploy"
+                                    //TODO: Migrating Tools Cluster
+                                    deployToAltRepo()
                                 }
+
+                                stage('push docker image') {
+                                    sh "mvn fabric8:push -Ddocker.push.registry=${dockerRepo}"
+                                    // TODO: Migrating Tools Cluster
+                                    pushImageToAltRepo(project, buildVersion, secondaryDockerRepo)
+                                }
+
+                                stage("Publish pacts") {
+                                    if (!isMergeRequestBuild) {
+                                        publishPacts()
+                                    }
+                                }
+
                             }
                         }
+                    }
 
-                        gitlabCommitStatus(name: "System test") {
-                            systemtestStage([microservice: [name: project, version: buildVersion]], isMergeRequestBuild)
-                        }
+                    gitlabCommitStatus(name: "System test") {
+                        systemtestStage([microservice: [name: project, version: buildVersion]], isMergeRequestBuild)
+                    }
 
-                        if (deployToDevAndProd) {
-
-                            stage("Deploy to dev") {
-                                build job: "${project}-dev-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
-                            }
-
-                            stage('Deploy to prod') {
-                                build job: "${project}-prod-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
-                            }
+                    if (deployToDevAndProd) {
+                        stage("Deploy to dev") {
+                            build job: "${project}-dev-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
                         }
                     }
                 }
