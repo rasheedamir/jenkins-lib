@@ -133,10 +133,6 @@ def call(body) {
                         }
                     }
 
-                    gitlabCommitStatus(name: "System test") {
-                        systemtestStage([microservice: [name: project, version: buildVersion]], isMergeRequestBuild)
-                    }
-
                     if (deployToDevAndProd) {
                         stage("Deploy to dev") {
                             build job: "${project}-dev-deploy", parameters: [[$class: 'StringParameterValue', name: 'VERSION', value: buildVersion]]
