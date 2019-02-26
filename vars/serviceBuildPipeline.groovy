@@ -123,12 +123,6 @@ def call(body) {
                                     pushImageToAltRepo(project, buildVersion, secondaryDockerRepo)
                                 }
 
-                                stage("Publish pacts") {
-                                    if (!isMergeRequestBuild) {
-                                        publishPacts()
-                                    }
-                                }
-
                             }
                         }
                     }
